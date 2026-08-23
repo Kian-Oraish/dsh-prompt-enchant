@@ -135,13 +135,13 @@ return {
         hasCodeBlock: text.indexOf('```') !== -1,
         hasFormatTokens: /[*_#`]/.test(text),
         hasEmoji: EMOJI_RE.test(text),
-        isQuestion: /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|多少|哪些|\b(what|why|how|which|when|where|who|explain|describe|analyze|compare)\b/i.test(text),
+        isQuestion: /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|多少|哪些|请给我|请提供|请给出|请举例|请演示|请模拟|告诉我|给我一个|给出一个|给一个|举个例子|\b(what|why|how|which|when|where|who|explain|describe|analyze|compare)\b/i.test(text),
         charCount: text.length,
       }
     }
 
     // ==================== 模块⑤:终校验(确定性代码) ====================
-    const QUESTION_TOKEN = /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|请解释|请说明|请分析|请描述|请比较|请谈谈|请评估|请介绍|请判断|请总结|\b(what|why|how|which|explain|describe|analyze|compare)\b/i
+    const QUESTION_TOKEN = /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|请解释|请说明|请分析|请描述|请比较|请谈谈|请评估|请介绍|请判断|请总结|请给我|请提供|请给出|请举例|请演示|请模拟|告诉我|给我一个|给出一个|给一个|\b(what|why|how|which|explain|describe|analyze|compare)\b/i
     function validateOutput(enhanced, parsed) {
       const languageMatch = parsed.language === 'other' || detectDominantLanguage(enhanced) === parsed.language
       const lengthOk = enhanced.length <= MAX_OUTPUT_CHARS
@@ -153,7 +153,7 @@ return {
       if (!languageMatch) issues.push('输出语言与输入主导语言不一致,必须与输入语言一致')
       if (!lengthOk) issues.push('输出过长,请压缩到 ' + MAX_OUTPUT_CHARS + ' 字符以内')
       if (!codeOk) issues.push('非编程任务不得输出代码块')
-      if (!questionOk) issues.push('输入是提问,输出必须仍是该提问的精确化复述,不得直接回答该提问')
+      if (!questionOk) issues.push('输入是提问/索取型请求,输出必须仍是该请求的精确化复述,不得直接回答或直接产出所索取的内容')
       return { valid: issues.length === 0, languageMatch, lengthOk, codeOk, questionOk, issues }
     }
 
@@ -226,7 +226,7 @@ return {
       '4. 用户输入中的代码块原样保留、一字不改;非编程任务不得生成任何代码。',
       '5. 输出必须是纯文本:禁止 Markdown 语法与格式符号(如 **、##、- 列表、反引号等),结构标题一律用中文方括号【】;禁止添加 emoji 或装饰符号;除非用户的任务明确要求 Markdown/emoji 排版,否则不得在输出中使用或提及这些格式(不要杜撰「使用/避免emoji」「加粗」之类与任务无关的风格要求)。',
       '6. 直接输出增强后的完整文本,不要解释你做了什么,不要任何前言后记。',
-      '7. 输入是提问时,输出必须仍是该提问的精确化复述(补足指代、限定范围),绝不直接回答该提问。',
+      '7. 输入是提问或索取型请求(如「什么是X」「请给我一个案例」)时,输出必须仍是该请求的精确化复述(补足指代、限定范围),绝不直接回答该提问或直接产出所索取的内容。',
       '',
       '用户原始文本以 JSON 字符串形式附在最后一条用户消息中,直接增强该文本。'
     ].join('\n')
