@@ -1,0 +1,22 @@
+{
+  "name": "dsh-prompt-enhance",
+  "version": "1.0.0",
+  "description": "增强提示词魔法棒:DSH Web 对话输入框的灵活自适应提示词增强插件(动态插件形态,纯 JS 免构建)",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "prompt-enhancement",
+    "cordis-plugin",
+    "ai"
+  ],
+  "license": "MIT",
+  "author": "Kian-Oraish",
+  "main": "dynamic/host.js",
+  "files": [
+    "dynamic/",
+    "config/",
+    "assets/icons/",
+    "README.md",
+    "LICENSE"
+  ]
+}
