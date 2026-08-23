@@ -1,7 +1,35 @@
 {
   "name": "dsh-prompt-enhance",
   "version": "0.1.0",
-  "description": "增强提示词魔法棒:DSH Web 对话输入框的灵活自适应提示词增强插件(动态插件形态,纯 JS 免构建)",
+  "description": "增强提示词魔法棒:DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载)",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "keywords": [
     "dsh",
     "deepseek-harness",
@@ -11,13 +39,15 @@
   ],
   "license": "MIT",
   "author": "Kian-Oraish",
-  "main": "dynamic/host.js",
   "files": [
-    "dynamic/",
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
     "config/",
     "assets/icons/",
     "README.md",
     "README.en.md",
-    "LICENSE"
+    "LICENSE",
+    "install.sh"
   ]
 }

@@ -1,0 +1,12 @@
+# dsh-prompt-enhance bundle patch
+#
+# 该文件是 npm 包的 `dsh.bundle.patch` 层。通过官方 CLI 安装时
+# (dsh plugin --profile <name> add dsh-prompt-enhance),命令会把本包
+# 追加进 dsh.profile.bundles 并在启动时合并此补丁;手动安装渠道
+# (./install.sh) 则把同样的 insert 行写入 profile 自身的 cordis.patch.yml。
+#
+# Host 半由本行挂载(提供 /prompt-enhance/* 路由与自检工具),
+# Client 半由 package.json 的 dsh.client 声明经 clientModules 自动加载。
+- insert:
+    - id: prompt-enhance
+      name: 'dsh-prompt-enhance'
