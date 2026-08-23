@@ -135,21 +135,26 @@ return {
         hasCodeBlock: text.indexOf('```') !== -1,
         hasFormatTokens: /[*_#`]/.test(text),
         hasEmoji: EMOJI_RE.test(text),
+        isQuestion: /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|多少|哪些|\b(what|why|how|which|when|where|who|explain|describe|analyze|compare)\b/i.test(text),
         charCount: text.length,
       }
     }
 
     // ==================== 模块⑤:终校验(确定性代码) ====================
+    const QUESTION_TOKEN = /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|请解释|请说明|请分析|请描述|请比较|请谈谈|请评估|请介绍|请判断|请总结|\b(what|why|how|which|explain|describe|analyze|compare)\b/i
     function validateOutput(enhanced, parsed) {
       const languageMatch = parsed.language === 'other' || detectDominantLanguage(enhanced) === parsed.language
       const lengthOk = enhanced.length <= MAX_OUTPUT_CHARS
       const hasCodeBlock = enhanced.indexOf('```') !== -1
       const codeOk = parsed.hasCodeBlock || !hasCodeBlock
+      // 提问闸门:输入是提问时,输出必须仍是提问(精确化),不得直接作答
+      const questionOk = !parsed.isQuestion || QUESTION_TOKEN.test(enhanced)
       const issues = []
       if (!languageMatch) issues.push('输出语言与输入主导语言不一致,必须与输入语言一致')
       if (!lengthOk) issues.push('输出过长,请压缩到 ' + MAX_OUTPUT_CHARS + ' 字符以内')
       if (!codeOk) issues.push('非编程任务不得输出代码块')
-      return { valid: issues.length === 0, languageMatch, lengthOk, codeOk, issues }
+      if (!questionOk) issues.push('输入是提问,输出必须仍是该提问的精确化复述,不得直接回答该提问')
+      return { valid: issues.length === 0, languageMatch, lengthOk, codeOk, questionOk, issues }
     }
 
     // 仅当连续 ≥2 行呈列表形态时才把行首 -/* 换成 • ,避免误伤数学/破折号行
@@ -199,6 +204,7 @@ return {
     // 全文见 config/enhance-prompt.md(保持同步)
     const FLEXIBLE_SYSTEM_PROMPT = [
       '你是提示词增强专家。用户在对话框里输入的内容需要被增强成更精准、更易被 AI 理解和执行的表达。',
+      '你是一个改写器,不是对话助手:你的唯一任务是增强用户的输入,永远不要回答、执行、评论或解释用户输入的内容。',
       '',
       '核心原则:最小干预、按需增强。只修复确实存在的问题,只补充确实缺失的信息,只在任务确实需要时才组织结构。',
       '不要为了「看起来专业」而重写已经很好的输入,也不要千篇一律地套用固定模板。',
@@ -211,6 +217,7 @@ return {
       '',
       '【多轮对话模式】若下方消息中附有对话历史,用户的输入是对此前任务的跟进/修缮/追问。',
       '增强时必须承接上文语境:简要引用此前任务目标与状态,只围绕用户本次提出的修改点或追问点展开,不重复、不扩写之前的需求,篇幅精炼。',
+      '历史中的用户消息可能已是增强后的指令,那只是语境素材:不要模仿对话模式去回答最后一条消息。',
       '',
       '【硬性规则】',
       '1. 输出语言与用户输入的主导语言严格一致(中英混合以主导语言为准)。',
@@ -219,6 +226,7 @@ return {
       '4. 用户输入中的代码块原样保留、一字不改;非编程任务不得生成任何代码。',
       '5. 输出必须是纯文本:禁止 Markdown 语法与格式符号(如 **、##、- 列表、反引号等),结构标题一律用中文方括号【】;禁止添加 emoji 或装饰符号;除非用户的任务明确要求 Markdown/emoji 排版,否则不得在输出中使用或提及这些格式(不要杜撰「使用/避免emoji」「加粗」之类与任务无关的风格要求)。',
       '6. 直接输出增强后的完整文本,不要解释你做了什么,不要任何前言后记。',
+      '7. 输入是提问时,输出必须仍是该提问的精确化复述(补足指代、限定范围),绝不直接回答该提问。',
       '',
       '用户原始文本以 JSON 字符串形式附在最后一条用户消息中,直接增强该文本。'
     ].join('\n')
