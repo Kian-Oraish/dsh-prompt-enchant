@@ -1,6 +1,6 @@
 # dsh-prompt-enhance · Prompt Enhancement Magic Wand
 
-[中文](./README.md) | English
+**🌐 Language | 语言:[中文](./README.md) · English**
 
 Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai) Web chat UI. On click, it enhances the user's colloquial, fragmented, possibly typo-ridden input into a more precise expression that AI can understand and execute, through a **standalone LLM call**, then fills the result back into the input box for human review before sending.
 
