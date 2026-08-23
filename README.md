@@ -1,5 +1,7 @@
 # dsh-prompt-enhance · 增强提示词魔法棒
 
+[English](./README.en.md) | 中文
+
 在 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai) Web 对话界面中,为输入框添加一个**四角闪光星魔法棒按钮**:点击后把用户口语化、零散、可能含错别字的输入,经**独立 LLM 调用**增强为更精准、更易被 AI 理解和执行的表达,回填输入框供人工确认后发送。
 
 > 本功能为原创实现的通用「提示词增强」能力,不涉及任何第三方产品商标或图标。
@@ -61,6 +63,7 @@
 ```
 dsh-prompt-enhance/
 ├── README.md
+├── README.en.md              # 英文版 README
 ├── LICENSE
 ├── package.json              # 仓库元信息(纯 JS,无构建、无依赖)
 ├── config/
