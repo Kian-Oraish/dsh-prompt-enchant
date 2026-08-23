@@ -77,9 +77,12 @@ return {
       '.pwe-icon-dark { display: none; }',
       'body[data-ds-dark-theme] .pwe-icon-light { display: none; }',
       'body[data-ds-dark-theme] .pwe-icon-dark { display: block; }',
-      // 等待动画:呼吸式(忽大忽小),替换旋转
+      // 忙碌动画:呼吸(缩放)+ 快速闪烁 + 按钮光晕,三重组合明确传达「工作中」
       '.pwe-btn.pwe-busy .pwe-icon,',
-      '.pwe-btn.pwe-busy .pwe-emoji { animation: pwe-breathe 1.4s ease-in-out infinite; }',
+      '.pwe-btn.pwe-busy .pwe-emoji {',
+      '  animation: pwe-breathe 1.2s ease-in-out infinite, pwe-flicker 0.6s ease-in-out infinite;',
+      '}',
+      '.pwe-btn.pwe-busy { animation: pwe-glow 1.2s ease-in-out infinite; }',
       '.pwe-btn.pwe-error { background: var(--dsw-alias-interactive-bg-hover-danger, rgba(229,72,77,.18)) !important; }',
       '.pwe-emoji { font-size: 15px; line-height: 1; }',
       // 悬停提示:data-tooltip 气泡,按钮上方居中,淡入过渡,不遮挡点击
@@ -115,8 +118,17 @@ return {
       '}',
       '.pwe-undo:hover { color: var(--dsw-alias-label-primary, #e8eaed); }',
       '@keyframes pwe-breathe {',
-      '  0%, 100% { transform: scale(1); opacity: 1; }',
-      '  50% { transform: scale(1.28); opacity: .68; }',
+      '  0%, 100% { transform: scale(1); }',
+      '  50% { transform: scale(1.4); }',
+      '}',
+      '@keyframes pwe-flicker {',
+      '  0%, 100% { opacity: 1; }',
+      '  25%, 75% { opacity: .4; }',
+      '  50% { opacity: .8; }',
+      '}',
+      '@keyframes pwe-glow {',
+      '  0%, 100% { box-shadow: 0 0 0 0 rgba(65, 118, 230, 0); }',
+      '  50% { box-shadow: 0 0 12px 3px var(--dsw-alias-brand-primary, rgba(65, 118, 230, .55)); }',
       '}',
     ].join('\n'))
 
