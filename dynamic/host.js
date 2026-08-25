@@ -187,15 +187,18 @@ return {
 
     // 清除模型自发添加的装饰性格式(仅当输入本身没有这些记号时)
     function stripDecorativeFormatting(text, parsed) {
-      if (parsed.hasFormatTokens && parsed.hasEmoji) return { text, stripped: false }
       let t = text
-      if (!parsed.hasFormatTokens) {
-        t = t.replace(/\*\*/g, '').replace(/__/g, '')
-        t = t.replace(/^#{1,6}\s+/gm, '')
-        t = tidyListMarkers(t)
-      }
-      if (!parsed.hasEmoji) {
-        t = t.replace(EMOJI_RE, '')
+      // 无条件剥离:双向控制符与零宽字符(显示层伪装/注入防护)
+      t = t.replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '')
+      if (!(parsed.hasFormatTokens && parsed.hasEmoji)) {
+        if (!parsed.hasFormatTokens) {
+          t = t.replace(/\*\*/g, '').replace(/__/g, '')
+          t = t.replace(/^#{1,6}\s+/gm, '')
+          t = tidyListMarkers(t)
+        }
+        if (!parsed.hasEmoji) {
+          t = t.replace(EMOJI_RE, '')
+        }
       }
       return { text: t, stripped: t !== text }
     }
@@ -497,7 +500,8 @@ return {
         return { cases: results }
       },
     })
-    harness.registerTool(ctx, selftestTool)
+    // 工具注册容错:框架演进时降级为无工具,不崩溃
+    try { harness.registerTool(ctx, selftestTool) } catch (err) { console.error('dsh-prompt-enhance: selftest 工具注册失败:', err) }
 
     // ==================== 诊断工具 ====================
     const diagTool = harness.defineTool({
@@ -530,6 +534,6 @@ return {
         return out
       },
     })
-    harness.registerTool(ctx, diagTool)
+    try { harness.registerTool(ctx, diagTool) } catch (err) { console.error('dsh-prompt-enhance: diag 工具注册失败:', err) }
   },
 }

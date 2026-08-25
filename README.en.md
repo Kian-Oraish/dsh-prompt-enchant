@@ -110,6 +110,19 @@ The disk-resident form reads optional row `config` (all values have defaults):
 - User input only flows inside the local DSH process and is never sent to any third party;
 - The plugin only registers local loopback HTTP routes and listens on no external interface.
 
+## Compatibility & Security
+
+**Framework contracts** (verified against the latest DSH framework): `conversation.input.right` slot registration (`id/order/label`) with InputZone / `useInput` / `useSession` / `inputActions` props; `defineTool` property-map parameters; the `dsh.client` declaration with the clientModules pre-built bundle format; the `body[data-ds-dark-theme]` theme flag.
+
+**Command-plugin isolation**: the draft is only read/written while the input is idle (`phase === 'plain'`). While `/plan`, `/goal` or any other command is claimed or submitting, both the wand and the undo button are disabled/hidden and never interfere. This plugin's namespaces (`prompt-enhance`, `prompt_enhance_*`, `pwe-*`, `/prompt-enhance/*`) do not overlap with those commands.
+
+**Security boundaries**:
+- The API rides DSH's webServer, loopback-bound (`127.0.0.1`) by default; if a deployment binds `0.0.0.0`, the exposure risk is yours;
+- Request-level guards: `application/json` only; cross-origin/cross-site requests rejected (`Origin` / `Sec-Fetch-Site` checks); in-flight cap of 2 (429 above); 4MB body limit;
+- Response hardening: `Cache-Control: no-store` + `X-Content-Type-Options: nosniff`;
+- Output sanitization: strips Markdown decoration, emoji, bidi control and zero-width characters (display-layer injection defense);
+- No authentication by design — do not expose this port on a shared host; route/tool registration is fault-tolerant and degrades instead of crashing when the framework evolves.
+
 ## License
 
 [MIT](./LICENSE) © 2026 Kian-Oraish

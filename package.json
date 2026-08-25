@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-enhance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "增强提示词魔法棒:DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载)",
   "type": "module",
   "main": "lib/index.js",
@@ -29,6 +29,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "*"
   },
   "keywords": [
     "dsh",

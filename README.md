@@ -110,6 +110,19 @@ dsh-prompt-enhance/
 - 用户输入仅在本机 DSH 进程内流转,不回传任何第三方;
 - 插件仅注册本机回环 HTTP 路由,不监听外部接口。
 
+## 兼容性与安全
+
+**框架契约**(已在 DSH 最新框架实测验证):`conversation.input.right` 槽位注册(`id/order/label`)与 InputZone/`useInput`/`useSession`/`inputActions` props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`。
+
+**命令插件隔离**:仅在输入空闲态(`phase === 'plain'`)读写草稿——`/plan`、`/goal` 等命令被声明或提交期间,魔法棒与撤销按钮自动禁用/隐藏,绝不干扰这些插件的流程;本插件命名空间(`prompt-enhance` / `prompt_enhance_*` / `pwe-*` / `/prompt-enhance/*`)与它们零重叠。
+
+**安全边界**:
+- API 依赖 DSH webServer 默认回环绑定(`127.0.0.1`);若部署改为 `0.0.0.0`,外部暴露风险请自担;
+- 请求级防护:仅接受 `application/json`;拒绝跨源/跨站请求(`Origin`/`Sec-Fetch-Site` 校验);并发上限 2(超出返回 429);请求体上限 4MB;
+- 响应加固:`Cache-Control: no-store` + `X-Content-Type-Options: nosniff`;
+- 输出净化:剥离 Markdown 装饰、emoji、双向控制符与零宽字符(显示层注入防护);
+- 无鉴权设计——请勿在共享主机暴露该端口;路由/工具注册均带容错,框架演进时降级而不崩溃。
+
 ## License
 
 [MIT](./LICENSE) © 2026 Kian-Oraish
