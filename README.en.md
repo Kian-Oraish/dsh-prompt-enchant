@@ -114,7 +114,7 @@ The disk-resident form reads optional row `config` (all values have defaults):
 
 **Framework contracts** (verified against the latest DSH framework): `conversation.input.right` slot registration (`id/order/label`) with InputZone / `useInput` / `useSession` / `inputActions` props; `defineTool` property-map parameters; the `dsh.client` declaration with the clientModules pre-built bundle format; the `body[data-ds-dark-theme]` theme flag.
 
-**Command-plugin isolation**: the draft is only read/written while the input is idle (`phase === 'plain'`). While `/plan`, `/goal` or any other command is claimed or submitting, both the wand and the undo button are disabled/hidden and never interfere. This plugin's namespaces (`prompt-enhance`, `prompt_enhance_*`, `pwe-*`, `/prompt-enhance/*`) do not overlap with those commands.
+**Command-plugin interaction** (`/plan`, `/goal`, ...): while a command is claimed, the user **can** click enhance — the plugin only rewrites the text AFTER the command token, leaving the token and the claim untouched, so the result never affects the command's invocation or display; the button is disabled when the command token cannot be located or while adjudicating/submitting. This plugin's namespaces (`prompt-enhance`, `prompt_enhance_*`, `pwe-*`, `/prompt-enhance/*`) do not overlap with those commands.
 
 **Security boundaries**:
 - The API rides DSH's webServer, loopback-bound (`127.0.0.1`) by default; if a deployment binds `0.0.0.0`, the exposure risk is yours;

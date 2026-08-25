@@ -114,7 +114,7 @@ dsh-prompt-enhance/
 
 **框架契约**(已在 DSH 最新框架实测验证):`conversation.input.right` 槽位注册(`id/order/label`)与 InputZone/`useInput`/`useSession`/`inputActions` props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`。
 
-**命令插件隔离**:仅在输入空闲态(`phase === 'plain'`)读写草稿——`/plan`、`/goal` 等命令被声明或提交期间,魔法棒与撤销按钮自动禁用/隐藏,绝不干扰这些插件的流程;本插件命名空间(`prompt-enhance` / `prompt_enhance_*` / `pwe-*` / `/prompt-enhance/*`)与它们零重叠。
+**命令插件交互**(`/plan`、`/goal` 等):用户在声明命令(claimed)时**可以点击增强**——插件只改写命令之后的正文部分,命令标记与声明状态原样保留,优化结果不影响命令的调用与显示;命令标记无法定位或输入处于判定/提交中时按钮禁用,绝不干扰命令流程。本插件命名空间(`prompt-enhance` / `prompt_enhance_*` / `pwe-*` / `/prompt-enhance/*`)与这些命令零重叠。
 
 **安全边界**:
 - API 依赖 DSH webServer 默认回环绑定(`127.0.0.1`);若部署改为 `0.0.0.0`,外部暴露风险请自担;

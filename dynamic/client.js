@@ -205,7 +205,23 @@ return {
 
       const draft = inputState !== null && inputState !== undefined && typeof inputState.draft === 'string' ? inputState.draft : ''
       const phase = inputState !== null && inputState !== undefined && typeof inputState.phase === 'string' ? inputState.phase : 'plain'
+      const claim = inputState !== null && inputState !== undefined && inputState.claim !== undefined && inputState.claim !== null && typeof inputState.claim.token === 'string'
+        ? inputState.claim
+        : null
       const actions = props.inputActions
+
+      // 命令声明态(/plan、/goal 等):提取行首命令前缀,只增强命令之后的正文,
+      // 命令标记与声明状态原样保留——增强结果不影响命令的调用与显示。
+      const CMD_RE = /^(\/[A-Za-z0-9_-]+)[ \t]*/
+      const claimed = phase === 'claimed' && claim !== null
+      let cmdPrefix = ''
+      let cmdBroken = false
+      if (claimed) {
+        const m = CMD_RE.exec(draft)
+        if (m !== null && m[1] === '/' + claim.token) cmdPrefix = m[0]
+        else cmdBroken = true
+      }
+      const textPart = claimed && !cmdBroken ? draft.slice(cmdPrefix.length) : draft
 
       const [busy, setBusy] = React.useState(false)
       const [error, setError] = React.useState('')
@@ -223,7 +239,11 @@ return {
         }
       }, [draft])
 
-      const disabled = busy || draft.trim().length === 0 || phase !== 'plain'
+      // 空闲态与命令声明态均可增强;判定/提交中禁用;命令标记无法定位时禁用(保护命令)
+      const disabled = busy || draft.trim().length === 0
+        || (phase !== 'plain' && phase !== 'claimed')
+        || cmdBroken
+        || (claimed && textPart.trim().length === 0)
 
       const handleClick = async () => {
         if (disabled) return
@@ -231,7 +251,7 @@ return {
         setError('')
         try {
           const history = extractHistory(session)
-          const call = host.call('enhance', { text: draft, history })
+          const call = host.call('enhance', { text: textPart, history })
           // 超时对齐 Host 最坏耗时(单次 45s × 重试链最多 3 次)
           const result = timer !== undefined
             ? await Promise.race([
@@ -240,10 +260,10 @@ return {
               ])
             : await call
           if (result !== null && result !== undefined && result.ok === true && typeof result.enhanced === 'string' && result.enhanced.trim().length > 0) {
-            setOriginal(draft)
+            setOriginal(textPart)
             setLastEnhanced(result.enhanced)
             setShowUndo(true)
-            if (actions !== undefined && typeof actions.setDraft === 'function') actions.setDraft(result.enhanced)
+            if (actions !== undefined && typeof actions.setDraft === 'function') actions.setDraft(cmdPrefix + result.enhanced)
           } else {
             const msg = result !== null && result !== undefined && typeof result.error === 'string' && result.error.length > 0
               ? result.error
@@ -258,19 +278,18 @@ return {
       }
 
       const handleUndo = () => {
-        // 命令声明(/plan、/goal 等)或提交期间绝不改写草稿,避免破坏这些插件流程
-        if (phase !== 'plain') return
+        // 判定/提交期间不写草稿;空闲态与命令声明态允许撤销(命令前缀原样保留)
+        if (phase !== 'plain' && phase !== 'claimed') return
         if (original !== null && actions !== undefined && typeof actions.setDraft === 'function') {
-          actions.setDraft(original)
+          actions.setDraft(cmdPrefix + original)
         }
         setOriginal(null)
         setLastEnhanced(null)
         setShowUndo(false)
       }
 
-      // 撤销常驻(直到编辑/发送),且仅空闲态可点:命令声明或提交中不显示撤销,
-      // 与 DSH /plan、/goal 等输入命令插件完全隔离,互不干扰
-      const undoActive = phase === 'plain' && showUndo && original !== null && lastEnhanced !== null && draft === lastEnhanced
+      // 撤销常驻(直到编辑/发送);空闲态与命令声明态均可撤销,正文比对防误触
+      const undoActive = (phase === 'plain' || phase === 'claimed') && showUndo && original !== null && lastEnhanced !== null && textPart === lastEnhanced
       const undoBtn = undoActive
         ? React.createElement('button', {
             type: 'button',
@@ -290,6 +309,10 @@ return {
       }
       if (busy || error.length > 0) {
         wandProps.title = busy ? '正在增强提示词…' : error + '(点击重试)'
+      } else if (cmdBroken) {
+        wandProps.title = '当前命令形态暂不支持增强(保护命令调用)'
+      } else if (claimed) {
+        wandProps['data-tooltip'] = '提示词优化(仅优化命令后的正文,命令保持不变)'
       } else {
         wandProps['data-tooltip'] = '提示词优化'
       }
