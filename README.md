@@ -46,11 +46,11 @@
 
 ## 截图
 
-![增强回填](./assets/screenshots/screenshot-enhanced.png)
+![增强回填](./assets/screenshots/screenshot-enhanced-v2.png)
 
 *点击魔法棒后,口语化需求被增强为结构化指令并回填输入框*
 
-![悬停提示](./assets/screenshots/screenshot-tooltip.png)
+![悬停提示](./assets/screenshots/screenshot-tooltip-v2.png)
 
 *悬停气泡「提示词优化」*
 

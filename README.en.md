@@ -46,11 +46,11 @@ Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSee
 
 ## Screenshots
 
-![Enhanced fill-back](./assets/screenshots/screenshot-enhanced.png)
+![Enhanced fill-back](./assets/screenshots/screenshot-enhanced-v2.png)
 
 *After clicking the wand, the colloquial request is enhanced into a structured instruction and filled back into the input box*
 
-![Hover tooltip](./assets/screenshots/screenshot-tooltip.png)
+![Hover tooltip](./assets/screenshots/screenshot-tooltip-v2.png)
 
 *The "Prompt Optimization" hover tooltip*
 
