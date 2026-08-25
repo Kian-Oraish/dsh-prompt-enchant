@@ -46,13 +46,13 @@
 
 ## 截图
 
-![增强回填](./assets/screenshots/screenshot-enhanced-v2.png)
+*完整流程演示(输入 → 点击魔法棒 → 增强回填):*
 
-*点击魔法棒后,口语化需求被增强为结构化指令并回填输入框*
+![演示流程](./assets/screenshots/demo-flow-v3.gif)
 
-![悬停提示](./assets/screenshots/screenshot-tooltip-v2.png)
-
-*悬停气泡「提示词优化」*
+| 增强前 | 增强后 |
+| --- | --- |
+| ![增强前](./assets/screenshots/screenshot-before-v3.png) | ![增强后](./assets/screenshots/screenshot-after-v3.png) |
 
 ## 工作原理
 
