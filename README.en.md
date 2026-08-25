@@ -54,6 +54,16 @@ Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSee
 | --- | --- |
 | ![Before](./assets/screenshots/screenshot-before-v3.png) | ![After](./assets/screenshots/screenshot-after-v3.png) |
 
+*Verification path for coexistence with `/plan`-style command claims (only the text after the command is enhanced; the command chip and claim stay untouched):*
+
+![Command flow demo](./assets/screenshots/demo-plan-flow-v4.gif)
+
+| After the claim (wand clickable) | After enhancement (`/plan` claim unchanged) |
+| --- | --- |
+| ![After the claim](./assets/screenshots/screenshot-plan-before-v4.png) | ![After enhancement](./assets/screenshots/screenshot-plan-after-v4.png) |
+
+Verification path: type `/plan 给这个仓库添加按后缀分类的功能` → the `/plan` command claim completes (chip appears) and the wand stays clickable → click the wand, only the text after `/plan` is enhanced into a structured instruction, while the `/plan` claim and chip remain untouched.
+
 ## How It Works
 
 A two-stage pipeline (deterministic code + one adaptive LLM call):

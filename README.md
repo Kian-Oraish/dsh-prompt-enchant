@@ -54,6 +54,16 @@
 | --- | --- |
 | ![增强前](./assets/screenshots/screenshot-before-v3.png) | ![增强后](./assets/screenshots/screenshot-after-v3.png) |
 
+*与 `/plan` 等命令声明共存的验证路径(仅增强命令后的正文,命令 chip 与声明保持原样):*
+
+![命令流程演示](./assets/screenshots/demo-plan-flow-v4.gif)
+
+| 命令声明后(魔法棒可点击) | 增强后(`/plan` 声明未变) |
+| --- | --- |
+| ![命令声明后](./assets/screenshots/screenshot-plan-before-v4.png) | ![增强后](./assets/screenshots/screenshot-plan-after-v4.png) |
+
+验证路径:输入 `/plan 给这个仓库添加按后缀分类的功能` → `/plan` 命令声明完成(chip 已出现),魔法棒处于可点击状态 → 点击魔法棒,仅 `/plan` 之后的正文被增强为结构化指令,`/plan` 声明与 chip 保持原样。
+
 ## 工作原理
 
 两段式管线(确定性代码 + 单次 LLM 自适应调用):
