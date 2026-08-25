@@ -213,10 +213,15 @@ return {
       const [lastEnhanced, setLastEnhanced] = React.useState(null)
       const [showUndo, setShowUndo] = React.useState(false)
 
+      // 撤销按钮常驻:不再自动消失,直到草稿被编辑或消息发送(草稿清空)为止。
+      // 发送/清空草稿后清理状态;编辑导致的隐藏由 undoActive 的 draft 比对守卫完成。
       React.useEffect(() => {
-        if (!showUndo || timer === undefined) return
-        return timer.timeout(() => setShowUndo(false), 8000)
-      }, [showUndo])
+        if (draft === '') {
+          setOriginal(null)
+          setLastEnhanced(null)
+          setShowUndo(false)
+        }
+      }, [draft])
 
       const disabled = busy || draft.trim().length === 0 || phase !== 'plain'
 
@@ -253,6 +258,8 @@ return {
       }
 
       const handleUndo = () => {
+        // 命令声明(/plan、/goal 等)或提交期间绝不改写草稿,避免破坏这些插件流程
+        if (phase !== 'plain') return
         if (original !== null && actions !== undefined && typeof actions.setDraft === 'function') {
           actions.setDraft(original)
         }
@@ -261,8 +268,9 @@ return {
         setShowUndo(false)
       }
 
-      // 撤销防误触:用户手动编辑过草稿(当前草稿 ≠ 增强结果)时隐藏撤销,防止误恢复覆盖新内容
-      const undoActive = showUndo && original !== null && lastEnhanced !== null && draft === lastEnhanced
+      // 撤销常驻(直到编辑/发送),且仅空闲态可点:命令声明或提交中不显示撤销,
+      // 与 DSH /plan、/goal 等输入命令插件完全隔离,互不干扰
+      const undoActive = phase === 'plain' && showUndo && original !== null && lastEnhanced !== null && draft === lastEnhanced
       const undoBtn = undoActive
         ? React.createElement('button', {
             type: 'button',
