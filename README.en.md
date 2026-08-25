@@ -1,4 +1,4 @@
-# dsh-prompt-enhance · Prompt Enhancement Magic Wand
+# dsh-prompt-enchant · Prompt-Enchanting Magic Wand
 
 **🌐 Language | 语言:[中文](./README.md) · English**
 
@@ -10,8 +10,8 @@ Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSee
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/Kian-Oraish/dsh-prompt-enhance.git
-   cd dsh-prompt-enhance
+   git clone https://github.com/Kian-Oraish/dsh-prompt-enchant.git
+   cd dsh-prompt-enchant
    ```
 2. Run the installer (idempotent — safe to re-run; copies the plugin into the DSH plugin directory and registers the composition config):
    ```bash
@@ -89,7 +89,7 @@ Architecture: the Host half (an ESM Cordis plugin) is mounted in the DSH composi
 ## Directory Structure
 
 ```
-dsh-prompt-enhance/
+dsh-prompt-enchant/
 ├── README.md / README.en.md    # bilingual docs
 ├── LICENSE
 ├── package.json                # plugin package metadata (dsh.bundle + dsh.client declarations)

@@ -1,7 +1,7 @@
 {
   "name": "dsh-prompt-enhance",
   "version": "0.2.0",
-  "description": "增强提示词魔法棒:DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载)",
+  "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载)",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -44,7 +44,7 @@
   "author": "Kian-Oraish",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Kian-Oraish/dsh-prompt-enhance.git"
+    "url": "https://github.com/Kian-Oraish/dsh-prompt-enchant.git"
   },
   "files": [
     "lib/index.js",

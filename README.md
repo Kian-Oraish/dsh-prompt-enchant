@@ -1,4 +1,4 @@
-# dsh-prompt-enhance · 增强提示词魔法棒
+# dsh-prompt-enchant · 提示词附魔棒
 
 **🌐 Language | 语言:[English](./README.en.md) · 中文**
 
@@ -10,8 +10,8 @@
 
 1. 克隆仓库到本地:
    ```bash
-   git clone https://github.com/Kian-Oraish/dsh-prompt-enhance.git
-   cd dsh-prompt-enhance
+   git clone https://github.com/Kian-Oraish/dsh-prompt-enchant.git
+   cd dsh-prompt-enchant
    ```
 2. 执行安装脚本(幂等,可重复执行;会把插件复制到 DSH 插件目录并注册组合配置):
    ```bash
@@ -89,7 +89,7 @@
 ## 目录结构
 
 ```
-dsh-prompt-enhance/
+dsh-prompt-enchant/
 ├── README.md / README.en.md    # 中英双语文档
 ├── LICENSE
 ├── package.json                # 插件包元信息(dsh.bundle + dsh.client 声明)

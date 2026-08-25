@@ -1,17 +1,17 @@
 # awesome-dsh-plugin 收录条目(供投稿 PR 使用)
 #
 # 用法:fork https://github.com/awesome-dsh-plugin/awesome-dsh-plugin,
-# 在 data/plugins/ 下新建同名文件 Kian-Oraish__dsh-prompt-enhance.yml,
+# 在 data/plugins/ 下新建同名文件 Kian-Oraish__dsh-prompt-enchant.yml,
 # 内容即下方 YAML;随后按 contributing.md 执行
 #   npm ci && node scripts/generate-readme.mjs
 # 提交 PR(每 PR 最多 3 条)。
 #
 # 说明:description 只写功能、不加营销词;tarball 指向 GitHub Release 托管的
 # 预构建包(安装免 allowBuilds 构建授权)。
-url: https://github.com/Kian-Oraish/dsh-prompt-enhance
-name: Kian-Oraish/dsh-prompt-enhance
+url: https://github.com/Kian-Oraish/dsh-prompt-enchant
+name: Kian-Oraish/dsh-prompt-enchant
 category: usage
 description:
   en: 'A magic-wand button that turns colloquial chat input into precise, structured instructions via a standalone LLM call.'
   zh: '魔法棒按钮:把对话框里的口语化输入经独立 LLM 调用增强为精准、结构化的指令。'
-tarball: https://github.com/Kian-Oraish/dsh-prompt-enhance/releases/latest/download/dsh-prompt-enhance-0.2.0.tgz
+tarball: https://github.com/Kian-Oraish/dsh-prompt-enchant/releases/latest/download/dsh-prompt-enhance-0.2.0.tgz
