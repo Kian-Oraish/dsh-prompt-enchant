@@ -44,6 +44,16 @@ Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSee
 - **Polished interactions**: sparkle icon (black star in light theme / white star in dark theme), breathing wait animation, "Prompt Optimization" hover tooltip, failure retry, undo (auto-hidden after the draft is manually edited, preventing accidental overwrites).
 - **Built-in self-test tools**: registers `prompt_enhance_selftest` and `prompt_enhance_diag` agent tools for running five real-world regression cases or diagnosing plugin status.
 
+## Screenshots
+
+![Enhanced fill-back](./assets/screenshots/screenshot-enhanced.png)
+
+*After clicking the wand, the colloquial request is enhanced into a structured instruction and filled back into the input box*
+
+![Hover tooltip](./assets/screenshots/screenshot-tooltip.png)
+
+*The "Prompt Optimization" hover tooltip*
+
 ## How It Works
 
 A two-stage pipeline (deterministic code + one adaptive LLM call):

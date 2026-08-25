@@ -44,6 +44,16 @@
 - **精致交互**:星星图标(亮色黑星/暗色白星自动切换)、呼吸式等待动画、悬停气泡「提示词优化」、失败重试、撤销(草稿被手动编辑后自动隐藏撤销,防误触)。
 - **内置自检工具**:注册 `prompt_enhance_selftest` / `prompt_enhance_diag` 两个 Agent 工具,可直接跑五类真实用例回归或诊断插件状态。
 
+## 截图
+
+![增强回填](./assets/screenshots/screenshot-enhanced.png)
+
+*点击魔法棒后,口语化需求被增强为结构化指令并回填输入框*
+
+![悬停提示](./assets/screenshots/screenshot-tooltip.png)
+
+*悬停气泡「提示词优化」*
+
 ## 工作原理
 
 两段式管线(确定性代码 + 单次 LLM 自适应调用):

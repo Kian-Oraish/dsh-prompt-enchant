@@ -42,6 +42,10 @@
   ],
   "license": "MIT",
   "author": "Kian-Oraish",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kian-Oraish/dsh-prompt-enhance.git"
+  },
   "files": [
     "lib/index.js",
     "lib/client.js",
