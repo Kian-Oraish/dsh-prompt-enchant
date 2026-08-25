@@ -136,6 +136,8 @@ The disk-resident form reads optional row `config` (all values have defaults):
 
 **Command-plugin interaction** (`/plan`, `/goal`, ...): while a command is claimed, the user **can** click enhance — the plugin only rewrites the text AFTER the command token, leaving the token and the claim untouched, so the result never affects the command's invocation or display; the button is disabled when the command token cannot be located or while adjudicating/submitting. This plugin's namespaces (`prompt-enhance`, `prompt_enhance_*`, `pwe-*`, `/prompt-enhance/*`) do not overlap with those commands.
 
+**@ reference protection** (`@filename`, `@file-path`, `@session-name`, ...): reference tokens are treated as untouchable placeholders during enhancement — a hard prompt rule requires them to be preserved verbatim and in order, the output is verified deterministically, a failed check triggers one retry and then falls back to the original text; the client fills the result back gap-by-gap (only the prose between references is rewritten), so the references' occurrence state and send-time file serialization are fully preserved; undo restores only the gap texts as well.
+
 **Security boundaries**:
 - The API rides DSH's webServer, loopback-bound (`127.0.0.1`) by default; if a deployment binds `0.0.0.0`, the exposure risk is yours;
 - Request-level guards: `application/json` only; cross-origin/cross-site requests rejected (`Origin` / `Sec-Fetch-Site` checks); in-flight cap of 2 (429 above); 4MB body limit;

@@ -49,6 +49,7 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
+    "lib/ref-guard.js",
     "cordis.patch.yml",
     "config/",
     "assets/icons/",

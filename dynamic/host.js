@@ -114,6 +114,33 @@ return {
 
     // ==================== 模块①:输入解析(确定性代码) ====================
     const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/u
+
+    // ==================== 引用记号保护(确定性) ====================
+    // 引用记号(@文件名/@路径/@会话名)是占位符:增强必须逐字按序保留。
+    const REF_TOKEN_RE = /(?<![A-Za-z0-9_.])@[^\s@()[\]{}「」『』"'“”,;:;,、。!?！？]+/g
+    function extractRefTokens(text) {
+      if (typeof text !== 'string') return []
+      const tokens = []
+      REF_TOKEN_RE.lastIndex = 0
+      let m
+      while ((m = REF_TOKEN_RE.exec(text)) !== null) {
+        const raw = m[0]
+        const at = raw.indexOf('@')
+        if (at >= 0) tokens.push(raw.slice(at))
+      }
+      return tokens
+    }
+    function refTokensPreserved(tokens, output) {
+      if (!Array.isArray(tokens) || tokens.length === 0) return true
+      if (typeof output !== 'string') return false
+      let from = 0
+      for (const t of tokens) {
+        const i = output.indexOf(t, from)
+        if (i === -1) return false
+        from = i + t.length
+      }
+      return true
+    }
     function detectDominantLanguage(text) {
       let cjk = 0
       let latin = 0
@@ -137,6 +164,7 @@ return {
         hasEmoji: EMOJI_RE.test(text),
         isQuestion: /[?？]|[吗呢么]|为什么|如何|怎么|什么是|啥|多少|哪些|请给我|请提供|请给出|请举例|请演示|请模拟|告诉我|给我一个|给出一个|给一个|举个例子|\b(what|why|how|which|when|where|who|explain|describe|analyze|compare)\b/i.test(text),
         charCount: text.length,
+        refTokens: extractRefTokens(text),
       }
     }
 
@@ -149,12 +177,15 @@ return {
       const codeOk = parsed.hasCodeBlock || !hasCodeBlock
       // 提问闸门:输入是提问时,输出必须仍是提问(精确化),不得直接作答
       const questionOk = !parsed.isQuestion || QUESTION_TOKEN.test(enhanced)
+      // 引用闸门:引用记号(@...)必须逐字按序保留
+      const refOk = refTokensPreserved(parsed.refTokens, enhanced)
       const issues = []
       if (!languageMatch) issues.push('输出语言与输入主导语言不一致,必须与输入语言一致')
       if (!lengthOk) issues.push('输出过长,请压缩到 ' + MAX_OUTPUT_CHARS + ' 字符以内')
       if (!codeOk) issues.push('非编程任务不得输出代码块')
       if (!questionOk) issues.push('输入是提问/索取型请求,输出必须仍是该请求的精确化复述,不得直接回答或直接产出所索取的内容')
-      return { valid: issues.length === 0, languageMatch, lengthOk, codeOk, questionOk, issues }
+      if (!refOk) issues.push('引用记号(@开头的占位符)必须逐字原样保留、顺序不变,只允许重写引用记号之间的普通文字')
+      return { valid: issues.length === 0, languageMatch, lengthOk, codeOk, questionOk, refOk, issues }
     }
 
     // 仅当连续 ≥2 行呈列表形态时才把行首 -/* 换成 • ,避免误伤数学/破折号行
@@ -230,6 +261,7 @@ return {
       '5. 输出必须是纯文本:禁止 Markdown 语法与格式符号(如 **、##、- 列表、反引号等),结构标题一律用中文方括号【】;禁止添加 emoji 或装饰符号;除非用户的任务明确要求 Markdown/emoji 排版,否则不得在输出中使用或提及这些格式(不要杜撰「使用/避免emoji」「加粗」之类与任务无关的风格要求)。',
       '6. 直接输出增强后的完整文本,不要解释你做了什么,不要任何前言后记。',
       '7. 输入是提问或索取型请求(如「什么是X」「请给我一个案例」)时,输出必须仍是该请求的精确化复述(补足指代、限定范围),绝不直接回答该提问或直接产出所索取的内容。',
+      '8. 用户输入中的引用记号(以 @ 开头、到空白符为止的占位符,如 @文件名、@文件路径、@会话名)是引用占位符:必须逐字原样保留(含 @ 符号),不得改写、翻译、增删、合并或调整顺序;增强只重写引用记号之间的普通文字。',
       '',
       '用户原始文本以 JSON 字符串形式附在最后一条用户消息中,直接增强该文本。'
     ].join('\n')
@@ -424,6 +456,13 @@ return {
         warning = warning === undefined ? '语言一致性校验未完全通过' : warning + ';语言一致性校验未完全通过'
       }
       output = output.trim()
+      // 引用保护兜底(在任何清理/截断之后执行):引用记号缺失或被改写 → 回退原文,绝不破坏引用
+      if (parsed.refTokens.length > 0 && !refTokensPreserved(parsed.refTokens, output)) {
+        output = parsed.text
+        warning = warning === undefined
+          ? '引用记号(@...)未能原样保留,已回退为原文,请人工确认后重试'
+          : warning + ';引用记号(@...)未能原样保留,已回退为原文'
+      }
       if (output.length === 0) throw new Error('模型未返回增强结果,请重试')
       const result = { ok: true, enhanced: output }
       if (warning !== undefined) result.warning = warning
