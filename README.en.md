@@ -64,19 +64,11 @@ Adds a **four-point sparkle magic-wand button** to the input box of the [DeepSee
 
 Verification path: type `/plan 给这个仓库添加按后缀分类的功能` → the `/plan` command claim completes (chip appears) and the wand stays clickable → click the wand, only the text after `/plan` is enhanced into a structured instruction, while the `/plan` claim and chip remain untouched.
 
-### @ reference preservation verification (v5)
+### @ reference preservation demo (v5)
 
 Demo environment and scope: DSH Web chat UI; references inserted via the `@` menu as `@filename` (e.g. `文件 · AGENTS.md`); full `@path` / quoted-path forms use the same mechanism and are covered too.
 
-**① Defect reproduction: enhancement used to break @ references (before the fix)** — two layers: the reference text was rewritten (`@AGENTS.md` → `AGENTS.md`, the `@` gone) and the reference chip (state indicator) disappeared:
-
-![Defect repro flow](./assets/screenshots/demo-ref-broken-flow-v5.gif)
-
-| Before (chip intact) | After (`@` lost, chip gone) |
-| --- | --- |
-| ![Before](./assets/screenshots/screenshot-ref-broken-before-v5.png) | ![After](./assets/screenshots/screenshot-ref-broken-after-v5.png) |
-
-**② After the fix: the reference is preserved verbatim and the chip stays**:
+**① The reference is preserved verbatim and the chip stays**:
 
 ![Fixed flow](./assets/screenshots/demo-ref-fixed-flow-v5.gif)
 
@@ -84,7 +76,7 @@ Demo environment and scope: DSH Web chat UI; references inserted via the `@` men
 | --- | --- |
 | ![After the fix](./assets/screenshots/screenshot-ref-fixed-after-v5.png) | ![Combined](./assets/screenshots/screenshot-ref-combo-before-v5.png) |
 
-**③ Undo restores the original text** (the reference is restored along with it):
+**② Undo restores the original text** (the reference is restored along with it):
 
 ![Undo demo](./assets/screenshots/demo-ref-undo-flow-v5.gif)
 
@@ -92,7 +84,7 @@ Demo environment and scope: DSH Web chat UI; references inserted via the `@` men
 | --- |
 | ![After undo](./assets/screenshots/screenshot-ref-undo-v5.png) |
 
-**④ Send verification: the reference is serialized and injected** — the message renders the reference as a chip and the file content reaches the model context (the context-injection row shows `~/.dsh/AGENTS.md, AGENTS.md`):
+**③ Send verification: the reference is serialized and injected** — the message renders the reference as a chip and the file content reaches the model context (the context-injection row shows `~/.dsh/AGENTS.md, AGENTS.md`):
 
 ![Send demo](./assets/screenshots/demo-ref-send-flow-v5.gif)
 
@@ -100,7 +92,7 @@ Demo environment and scope: DSH Web chat UI; references inserted via the `@` men
 | --- |
 | ![After send](./assets/screenshots/screenshot-ref-send-v5.png) |
 
-**⑤ Combined `/plan` + @ reference scenario** (command claim and reference both stay intact):
+**④ Combined `/plan` + @ reference scenario** (command claim and reference both stay intact):
 
 ![Combined demo](./assets/screenshots/demo-ref-claim-flow-v5.gif)
 

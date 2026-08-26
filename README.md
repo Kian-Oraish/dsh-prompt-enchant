@@ -64,19 +64,11 @@
 
 验证路径:输入 `/plan 给这个仓库添加按后缀分类的功能` → `/plan` 命令声明完成(chip 已出现),魔法棒处于可点击状态 → 点击魔法棒,仅 `/plan` 之后的正文被增强为结构化指令,`/plan` 声明与 chip 保持原样。
 
-### @ 引用保真修复验证(v5)
+### @ 引用保真功能演示(v5)
 
 演示环境与覆盖范围:DSH Web 网页对话界面;以 `@文件名` 形式经 `@` 菜单插入引用(「文件 · AGENTS.md」);完整 `@路径`/引号路径同机制,一并覆盖。
 
-**① 缺陷复现:增强破坏 @ 引用(修复前)**——两层表现:引用文本被改写(`@AGENTS.md` → `AGENTS.md`,`@` 符号丢失)与引用状态标识(chip)消失:
-
-![缺陷复现流程](./assets/screenshots/demo-ref-broken-flow-v5.gif)
-
-| 增强前(chip 正常) | 增强后(`@` 丢失、chip 消失) |
-| --- | --- |
-| ![增强前](./assets/screenshots/screenshot-ref-broken-before-v5.png) | ![增强后](./assets/screenshots/screenshot-ref-broken-after-v5.png) |
-
-**② 修复后:引用逐字保留且 chip 保留**:
+**① 引用逐字保留且 chip 保留**:
 
 ![修复后流程](./assets/screenshots/demo-ref-fixed-flow-v5.gif)
 
@@ -84,7 +76,7 @@
 | --- | --- |
 | ![修复后](./assets/screenshots/screenshot-ref-fixed-after-v5.png) | ![组合场景](./assets/screenshots/screenshot-ref-combo-before-v5.png) |
 
-**③ 撤销恢复原文**(引用随撤销一并还原):
+**② 撤销恢复原文**(引用随撤销一并还原):
 
 ![撤销演示](./assets/screenshots/demo-ref-undo-flow-v5.gif)
 
@@ -92,7 +84,7 @@
 | --- |
 | ![撤销后](./assets/screenshots/screenshot-ref-undo-v5.png) |
 
-**④ 发送验证:引用被序列化注入**——消息中引用以 chip 呈现,文件内容进入模型上下文(上下文注入显示 `~/.dsh/AGENTS.md, AGENTS.md`):
+**③ 发送验证:引用被序列化注入**——消息中引用以 chip 呈现,文件内容进入模型上下文(上下文注入显示 `~/.dsh/AGENTS.md, AGENTS.md`):
 
 ![发送演示](./assets/screenshots/demo-ref-send-flow-v5.gif)
 
@@ -100,7 +92,7 @@
 | --- |
 | ![发送后](./assets/screenshots/screenshot-ref-send-v5.png) |
 
-**⑤ `/plan` 与 @ 引用组合场景**(命令声明与引用同时保持):
+**④ `/plan` 与 @ 引用组合场景**(命令声明与引用同时保持):
 
 ![组合演示](./assets/screenshots/demo-ref-claim-flow-v5.gif)
 
