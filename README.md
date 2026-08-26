@@ -44,7 +44,7 @@
 - **精致交互**:星星图标(亮色黑星/暗色白星自动切换)、呼吸式等待动画、悬停气泡「提示词优化」、失败重试、撤销(草稿被手动编辑后自动隐藏撤销,防误触)。
 - **内置自检工具**:注册 `prompt_enhance_selftest` / `prompt_enhance_diag` 两个 Agent 工具,可直接跑五类真实用例回归或诊断插件状态。
 
-## 截图
+## 操作演示
 
 *完整流程演示(输入 → 点击魔法棒 → 增强回填):*
 
@@ -63,6 +63,50 @@
 | ![命令声明后](./assets/screenshots/screenshot-plan-before-v4.png) | ![增强后](./assets/screenshots/screenshot-plan-after-v4.png) |
 
 验证路径:输入 `/plan 给这个仓库添加按后缀分类的功能` → `/plan` 命令声明完成(chip 已出现),魔法棒处于可点击状态 → 点击魔法棒,仅 `/plan` 之后的正文被增强为结构化指令,`/plan` 声明与 chip 保持原样。
+
+### @ 引用保真修复验证(v5)
+
+演示环境与覆盖范围:DSH Web 网页对话界面;以 `@文件名` 形式经 `@` 菜单插入引用(「文件 · AGENTS.md」);完整 `@路径`/引号路径同机制,一并覆盖。
+
+**① 缺陷复现:增强破坏 @ 引用(修复前)**——两层表现:引用文本被改写(`@AGENTS.md` → `AGENTS.md`,`@` 符号丢失)与引用状态标识(chip)消失:
+
+![缺陷复现流程](./assets/screenshots/demo-ref-broken-flow-v5.gif)
+
+| 增强前(chip 正常) | 增强后(`@` 丢失、chip 消失) |
+| --- | --- |
+| ![增强前](./assets/screenshots/screenshot-ref-broken-before-v5.png) | ![增强后](./assets/screenshots/screenshot-ref-broken-after-v5.png) |
+
+**② 修复后:引用逐字保留且 chip 保留**:
+
+![修复后流程](./assets/screenshots/demo-ref-fixed-flow-v5.gif)
+
+| 修复后(引用逐字保留、chip 在) | 组合场景增强前 |
+| --- | --- |
+| ![修复后](./assets/screenshots/screenshot-ref-fixed-after-v5.png) | ![组合场景](./assets/screenshots/screenshot-ref-combo-before-v5.png) |
+
+**③ 撤销恢复原文**(引用随撤销一并还原):
+
+![撤销演示](./assets/screenshots/demo-ref-undo-flow-v5.gif)
+
+| 撤销后(原文与 chip 均还原) |
+| --- |
+| ![撤销后](./assets/screenshots/screenshot-ref-undo-v5.png) |
+
+**④ 发送验证:引用被序列化注入**——消息中引用以 chip 呈现,文件内容进入模型上下文(上下文注入显示 `~/.dsh/AGENTS.md, AGENTS.md`):
+
+![发送演示](./assets/screenshots/demo-ref-send-flow-v5.gif)
+
+| 发送后(消息引用 chip + 上下文注入) |
+| --- |
+| ![发送后](./assets/screenshots/screenshot-ref-send-v5.png) |
+
+**⑤ `/plan` 与 @ 引用组合场景**(命令声明与引用同时保持):
+
+![组合演示](./assets/screenshots/demo-ref-claim-flow-v5.gif)
+
+| 组合场景(增强后) |
+| --- |
+| ![组合场景](./assets/screenshots/screenshot-ref-claim-combo-v5.png) |
 
 ## 工作原理
 
