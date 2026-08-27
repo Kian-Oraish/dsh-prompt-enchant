@@ -7,11 +7,11 @@
 # 提交 PR(每 PR 最多 3 条)。
 #
 # 说明:description 只写功能、不加营销词;tarball 指向 GitHub Release 托管的
-# 预构建包(安装免 allowBuilds 构建授权)。
+# 预构建包(安装免 allowBuilds 构建授权);截图由仓库根 screenshots.json 声明(1-8 张)。
 url: https://github.com/Kian-Oraish/dsh-prompt-enchant
 name: Kian-Oraish/dsh-prompt-enchant
 category: usage
 description:
-  en: 'A magic-wand button that turns colloquial chat input into precise, structured instructions via a standalone LLM call.'
-  zh: '魔法棒按钮:把对话框里的口语化输入经独立 LLM 调用增强为精准、结构化的指令。'
+  en: 'A magic-wand button that turns colloquial chat input into precise, structured instructions via a standalone LLM call, leaving /plan-style command claims and @file references untouched.'
+  zh: '魔法棒按钮:把对话框里的口语化输入经独立 LLM 调用增强为精准、结构化的指令,并保持 /plan 类命令声明与 @ 文件引用原样不动。'
 tarball: https://github.com/Kian-Oraish/dsh-prompt-enchant/releases/latest/download/dsh-prompt-enhance-0.2.0.tgz
