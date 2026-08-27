@@ -168,7 +168,9 @@ dsh-prompt-enchant/
 
 ## 兼容性与安全
 
-**框架契约**(已在 DSH 最新框架实测验证):`conversation.input.right` 槽位注册(`id/order/label`)与 InputZone/`useInput`/`useSession`/`inputActions` props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`。
+**框架契约**(已在 DSH **0.1.1-rc.2** 实测验证,含全部演示素材):`conversation.input.right` 槽位注册(`id/order/label`)与 InputZone/`useInput`/`useSession`/`inputActions` props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`。
+
+**版本兼容**:`dsh.client.inject` 仅声明客户端模块图中实际存在的包(`runtime`/`locale`/`ui-conversation`;`dsh-client-ui-slots` 在 0.1.1-rc.2 中已不存在,本包亦未引用,故不在注入清单);客户端 bundle 仅 `require('react')`,槽位服务经 `ctx.get('slots')` 获取。若更早的 DSH 版本不含客户端槽位系统,魔法棒按钮不会渲染,但 Host 半(增强 API 与自检工具)不受影响。
 
 **命令插件交互**(`/plan`、`/goal` 等):用户在声明命令(claimed)时**可以点击增强**——插件只改写命令之后的正文部分,命令标记与声明状态原样保留,优化结果不影响命令的调用与显示;命令标记无法定位或输入处于判定/提交中时按钮禁用,绝不干扰命令流程。本插件命名空间(`prompt-enhance` / `prompt_enhance_*` / `pwe-*` / `/prompt-enhance/*`)与这些命令零重叠。
 

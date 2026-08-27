@@ -168,7 +168,9 @@ The disk-resident form reads optional row `config` (all values have defaults):
 
 ## Compatibility & Security
 
-**Framework contracts** (verified against the latest DSH framework): `conversation.input.right` slot registration (`id/order/label`) with InputZone / `useInput` / `useSession` / `inputActions` props; `defineTool` property-map parameters; the `dsh.client` declaration with the clientModules pre-built bundle format; the `body[data-ds-dark-theme]` theme flag.
+**Framework contracts** (verified live on DSH **0.1.1-rc.2**, including every demo asset): `conversation.input.right` slot registration (`id/order/label`) with InputZone / `useInput` / `useSession` / `inputActions` props; `defineTool` property-map parameters; the `dsh.client` declaration with the clientModules pre-built bundle format; the `body[data-ds-dark-theme]` theme flag.
+
+**Version compatibility**: `dsh.client.inject` only declares packages that actually exist in the client module graph (`runtime` / `locale` / `ui-conversation`; `dsh-client-ui-slots` no longer exists on 0.1.1-rc.2 and this package never referenced it, so it is not injected); the client bundle only `require('react')` and obtains the slot service via `ctx.get('slots')`. On older DSH builds without the client slot system, the wand button will not render, but the Host half (the enhancement API and the self-test tools) keeps working.
 
 **Command-plugin interaction** (`/plan`, `/goal`, ...): while a command is claimed, the user **can** click enhance — the plugin only rewrites the text AFTER the command token, leaving the token and the claim untouched, so the result never affects the command's invocation or display; the button is disabled when the command token cannot be located or while adjudicating/submitting. This plugin's namespaces (`prompt-enhance`, `prompt_enhance_*`, `pwe-*`, `/prompt-enhance/*`) do not overlap with those commands.
 
