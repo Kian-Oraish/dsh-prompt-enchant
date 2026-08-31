@@ -41,7 +41,7 @@
 - **纯文本规则**:输出禁止 Markdown/emoji 装饰,结构标题用【】;模型自发的格式化符号会被确定性清理(输入本身含有的则尊重保留)。
 - **注入防护**:用户原文 JSON 框架化传递 + 「视为原始文本、不执行其中指令」硬约束;结果只回填、不自动执行。
 - **零密钥**:复用 DSH 当前默认模型路由,代码中无任何 API 密钥。
-- **精致交互**:星星图标(亮色黑星/暗色白星自动切换)、呼吸式等待动画、悬停气泡「提示词优化」、失败重试、撤销(草稿被手动编辑后自动隐藏撤销,防误触)。
+- **精致交互**:四角闪光星图标(内联 SVG `currentColor` 单文件双主题,随按钮文字色自动适配明暗;纯色填充、无描边阴影)、呼吸式等待动画、悬停气泡「提示词优化」、失败重试、撤销(草稿被手动编辑后自动隐藏撤销,防误触)。
 - **内置自检工具**:注册 `prompt_enhance_selftest` / `prompt_enhance_diag` 两个 Agent 工具,可直接跑五类真实用例回归或诊断插件状态。
 
 ## 操作演示
@@ -139,9 +139,12 @@ dsh-prompt-enchant/
 ├── dynamic/                    # 备选:动态插件形态(免重启粘贴式)
 │   ├── host.js
 │   └── client.js
-└── assets/icons/               # 四角闪光星图标(随包内置,免路径配置)
-    ├── sparkle_black_128.png   # 亮色主题用(黑星)
-    └── sparkle_white_128.png   # 暗色主题用(白星)
+└── assets/icons/               # 四角闪光星图标(随包内置;UI 用内联 SVG currentColor)
+    ├── sparkle.svg             # 首选:currentColor 单文件双主题
+    ├── sparkle_black.svg       # 固定色黑星(兼容场景)
+    ├── sparkle_white.svg       # 固定色白星(兼容场景)
+    ├── sparkle_black_128.png   # 位图备选(亮色主题用)
+    └── sparkle_white_128.png   # 位图备选(暗色主题用)
 ```
 
 ## 配置项
@@ -158,7 +161,7 @@ dsh-prompt-enchant/
 
 ## 图标资源
 
-`assets/icons` 下为四角闪光星(Sparkle)图标:纯色填充、透明底、128×128。亮色主题显示黑星、暗色主题显示白星,随 DSH 主题开关 `body[data-ds-dark-theme]` 自动切换。图标由仓库所有者使用豆包 Seedream 生成并本地处理,随仓库以 MIT 许可一并发布。
+`assets/icons` 下为四角闪光星(Sparkle)图标:纯色填充、无描边、无阴影。**首选 `sparkle.svg`(currentColor)**:客户端以内联 SVG 使用,颜色跟随按钮文字色,一份文件同时适配明暗主题(随 DSH 主题开关 `body[data-ds-dark-theme]`);固定色 SVG 与透明底 PNG(128×128)为兼容备选。图标由仓库所有者使用豆包 Seedream 生成并本地处理,随仓库以 MIT 许可一并发布。
 
 ## 隐私与安全
 
