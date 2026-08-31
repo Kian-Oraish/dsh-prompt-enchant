@@ -212,10 +212,16 @@ return {
       const inputState = hooked !== undefined && hooked !== null && typeof hooked === 'object'
         ? hooked
         : (props.input !== undefined && props.input !== null ? props.input : null)
+      // 框架版本兼容:0.1.2-alpha.2 起标准 props 移除 useSession(改为 useConversation,
+      // 其快照仅含 views/activeTargets,不含消息历史)。优先旧版 useSession;
+      // 若新版 useConversation 快照未来含 nodes 亦兼容;都没有则历史为空(单轮增强)。
       const sessionHooked = typeof props.useSession === 'function' ? props.useSession((s) => s) : undefined
+      const convHooked = typeof props.useConversation === 'function' ? props.useConversation((s) => s) : undefined
       const session = sessionHooked !== undefined && sessionHooked !== null && typeof sessionHooked === 'object'
         ? sessionHooked
-        : (props.session !== undefined && props.session !== null ? props.session : null)
+        : (convHooked !== undefined && convHooked !== null && Array.isArray(convHooked.nodes) ? convHooked
+          : (props.session !== undefined && props.session !== null ? props.session : null))
+      const newFramework = typeof props.useSession !== 'function' && typeof props.useConversation === 'function'
 
       const draft = inputState !== null && inputState !== undefined && typeof inputState.draft === 'string' ? inputState.draft : ''
       const phase = inputState !== null && inputState !== undefined && typeof inputState.phase === 'string' ? inputState.phase : 'plain'
@@ -261,10 +267,16 @@ return {
         }
       }, [draft])
 
+      // 新框架(0.1.2-alpha.2+)引用保护:其输入机为 Lexical 编辑器,setDraft(纯文本)
+      // 会把引用 chip 重建为样式化文本(TextRef),不再进 occurrence 表 → 发送时不再注入
+      // 文件内容;且公开 API 无引用重插动词。为保护引用完整性,含 occurrence 引用时禁用增强。
+      const refGuardBlocked = newFramework && refs !== null && refs.length > 0
+
       // 空闲态与命令声明态均可增强;判定/提交中禁用;命令标记无法定位时禁用(保护命令)
       const disabled = busy || draft.trim().length === 0
         || (phase !== 'plain' && phase !== 'claimed')
         || cmdBroken
+        || refGuardBlocked
         || (claimed && textPart.trim().length === 0)
 
       const handleClick = async () => {
@@ -367,6 +379,8 @@ return {
         wandProps.title = busy ? '正在增强提示词…' : error + '(点击重试)'
       } else if (cmdBroken) {
         wandProps.title = '当前命令形态暂不支持增强(保护命令调用)'
+      } else if (refGuardBlocked) {
+        wandProps.title = '当前 DSH 版本下含 @ 引用的草稿暂不支持增强(保护引用注入)'
       } else if (claimed) {
         wandProps['data-tooltip'] = '提示词优化(仅优化命令后的正文,命令保持不变)'
       } else {

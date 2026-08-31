@@ -14,4 +14,4 @@ category: usage
 description:
   en: 'A magic-wand button that turns colloquial chat input into precise, structured instructions via a standalone LLM call, leaving /plan-style command claims and @file references untouched.'
   zh: '魔法棒按钮:把对话框里的口语化输入经独立 LLM 调用增强为精准、结构化的指令,并保持 /plan 类命令声明与 @ 文件引用原样不动。'
-tarball: https://github.com/Kian-Oraish/dsh-prompt-enchant/releases/latest/download/dsh-prompt-enhance-0.2.2.tgz
+tarball: https://github.com/Kian-Oraish/dsh-prompt-enchant/releases/latest/download/dsh-prompt-enhance-0.2.3.tgz
