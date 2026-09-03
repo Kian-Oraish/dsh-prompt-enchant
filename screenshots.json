@@ -1,10 +1,10 @@
 [
-  "assets/screenshots/screenshot-before-v3.png",
-  "assets/screenshots/screenshot-after-v3.png",
-  "assets/screenshots/screenshot-plan-before-v4.png",
-  "assets/screenshots/screenshot-plan-after-v4.png",
-  "assets/screenshots/screenshot-ref-combo-before-v5.png",
-  "assets/screenshots/screenshot-ref-fixed-after-v5.png",
-  "assets/screenshots/screenshot-ref-undo-v5.png",
-  "assets/screenshots/screenshot-ref-send-v5.png"
+  "assets/screenshots/v6-panel-light.png",
+  "assets/screenshots/v6-panel-dark.png",
+  "assets/screenshots/v6-card-detail.png",
+  "assets/screenshots/v6-wand-generic.png",
+  "assets/screenshots/v6-wand-design.png",
+  "assets/screenshots/v6-suggest-bar.png",
+  "assets/screenshots/v6-design-output.png",
+  "assets/screenshots/demo-mode-suggest-flow-v6.gif"
 ]

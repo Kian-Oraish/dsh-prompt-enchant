@@ -38,13 +38,28 @@ test('通用模式提示词与 v0.2.3 原文逐字一致(行为零变化承诺)'
 })
 
 test('注册表基本契约', () => {
-  assert.deepEqual(MODE_IDS, ['generic'])
-  assert.deepEqual(modeIds(), ['generic'])
+  assert.deepEqual(MODE_IDS, ['generic', 'design'])
+  assert.deepEqual(modeIds(), ['generic', 'design'])
   assert.equal(defaultMode(), 'generic')
   assert.equal(hasMode('generic'), true)
-  assert.equal(hasMode('designer'), false)
+  assert.equal(hasMode('design'), true)
+  assert.equal(hasMode('ai-video'), false)
   assert.equal(hasMode(undefined), false)
   assert.equal(hasMode(42), false)
+})
+
+test('设计模式提示词结构:场景识别/图像节/视频节/输出格式齐全,核心硬规则完整', () => {
+  const prompt = buildSystemPrompt('design')
+  assert.ok(prompt !== undefined)
+  assert.ok(prompt.includes('【场景识别】'))
+  assert.ok(prompt.includes('【图像创作(文生图/图生图/交互编辑)】'))
+  assert.ok(prompt.includes('【视频创作(文生视频/图生视频/首尾帧)】'))
+  assert.ok(prompt.includes('【输出格式】'))
+  assert.ok(prompt.includes('【硬性规则】'))
+  assert.ok(prompt.includes('引用记号'))
+  assert.ok(prompt.endsWith('用户原始文本以 JSON 字符串形式附在最后一条用户消息中,直接增强该文本。'))
+  // 模式层不含建议标记协议(建议段由宿主按需注入,不属于任何模式层)
+  assert.equal(prompt.includes('[[MODE:'), false)
 })
 
 test('未知模式组装返回 undefined,不抛异常', () => {
@@ -65,6 +80,21 @@ test('公开元数据形状:含 id/双语名称/双语简介,绝不含提示词�
     const json = JSON.stringify(m)
     assert.equal(json.includes('增强程度由你判断'), false)
     assert.equal(json.includes('硬性规则'), false)
+  }
+})
+
+test('场景标签元数据:随模式定义、双语、非空', () => {
+  const modes = publicModes()
+  const byId = Object.fromEntries(modes.map((m) => [m.id, m]))
+  assert.ok(Array.isArray(byId.generic.tags) && byId.generic.tags.length > 0)
+  assert.ok(Array.isArray(byId.design.tags) && byId.design.tags.length > 0)
+  assert.deepEqual(byId.generic.tags.map((t) => t.zh), ['通用'])
+  assert.deepEqual(byId.design.tags.map((t) => t.zh), ['图像', '视频'])
+  for (const m of modes) {
+    for (const t of m.tags) {
+      assert.equal(typeof t.zh, 'string')
+      assert.equal(typeof t.en, 'string')
+    }
   }
 })
 

@@ -14,6 +14,10 @@
 // ============================================================================
 
 return {
+  // 新框架(0.1.2-alpha.5+)宿主运行时守卫:调用 timer 系 ctx 助手(如
+  // ctx.timeout)前必须声明注入;fs/sandboxPolicy/settings 为可选服务,
+  // 不进注入清单(缺失时镜像自动降级,插件不会被挂起)。
+  inject: ['llm', 'timer', 'tools'],
   apply(ctx) {
     const llm = ctx.get('llm')
     const defaultModel = ctx.get('agentDefaultModel')
@@ -269,7 +273,28 @@ return {
       '',
       '用户原始文本以 JSON 字符串形式附在最后一条用户消息中,直接增强该文本。'
     ].join('\n')
-    const MODE_IDS = ['generic']
+    const DESIGN_LAYER = [
+      '【场景识别】判断用户输入属于哪种创作场景,按对应小节优化;无法归入图像/视频创作的输入,按通用增强方式处理,不强行套用创作术语。',
+      '',
+      '【图像创作(文生图/图生图/交互编辑)】',
+      '- 把用户的大白话意图翻译为精确的画面描述:主体(谁/什么,含外观、数量、动作)、环境(地点、时间、天气)、风格(摄影/插画/3D/国风/赛博朋克等,用户未指定时选与内容气质相符的最常见风格并标注【待确认】)、构图(视角、景别、取景重点)、光照(方向、色温、氛围)、画质(如超清、8K、细节丰富,标注【待确认】)。',
+      '- 图生图/交互编辑:用户描述对已有图的修改时,保留「改什么 + 其余保持不变」的语义,明确输出为修改指令,不得改写为全新创作描述。',
+      '- 负面要素(不要什么)若用户提及,保留原意并用「避免/排除:xxx」表达;用户未提及则不添加。',
+      '- 用户明确给出的风格/参数/专有名词逐字保留,不得翻译或替换。',
+      '',
+      '【视频创作(文生视频/图生视频/首尾帧)】',
+      '- 把意图翻译为可执行的视频提示:主体与动作、场景与时间、运镜(推/拉/摇/移/跟/升降,用户未指定时按内容补最常见的并标注【待确认】)、节奏与时长、氛围(色调/配乐感)。',
+      '- 首尾帧:用户给出首帧与尾帧描述时,两段分别优化并保持对应关系,标注【首帧】【尾帧】,不得合并或丢失其一;图生视频的参考图语义保留(「基于这段/这张…」)。',
+      '- 风格一致性(同一角色/画风贯穿全片)若用户提及则明确保留;未提及不添加。',
+      '- 用户明确给出的参数(时长、帧率、分辨率、比例)逐字保留。',
+      '',
+      '【输出格式】沿用硬性规则 5(纯文本、中文方括号标题):图像场景可用【画面】【风格】【构图】【光照】等小节;视频场景可用【场景】【运镜】【节奏】【首帧】【尾帧】等小节;按需选用,不要硬凑。'
+    ].join('\n')
+    const SUGGEST_SEGMENT = [
+      '',
+      '【模式建议】若你判断本输入属于图像/视频创作场景(文生图、图生图、交互编辑、文生视频、图生视频、首尾帧),请在增强文本末尾另起一行输出标记 [[MODE:design]];否则不要输出任何标记。'
+    ].join('\n')
+    const MODE_IDS = ['generic', 'design']
     const MODES = {
       generic: {
         id: 'generic',
@@ -279,6 +304,15 @@ return {
           en: 'Flexible adaptive enhancement: minimal intervention, fill gaps as needed. Fits all kinds of tasks (default)'
         },
         layer: GENERIC_LAYER
+      },
+      design: {
+        id: 'design',
+        name: { zh: '设计', en: 'Design' },
+        description: {
+          zh: '面向 AI 图像与视频创作:主体、风格、构图、光照、运镜、首尾帧等专业要素的术语化与补全',
+          en: 'For AI image & video creation: terminology and completion of professional elements such as subject, style, composition, lighting, camera movement, and first/last frames'
+        },
+        layer: DESIGN_LAYER
       }
     }
     function hasMode(id) { return typeof id === 'string' && MODE_IDS.indexOf(id) !== -1 && MODES[id] !== undefined }
@@ -292,6 +326,34 @@ return {
         const m = MODES[id]
         return { id, name: m.name, description: m.description }
       })
+    }
+    // 建议标记剥离(与 lib/suggest.js 同步的粘贴版)
+    const SUGGEST_TAG_RE = /\[\[MODE:([a-z][a-z0-9-]*)\]\]/g
+    function stripSuggestTags(text) {
+      if (typeof text !== 'string') return { text: '', suggested: undefined }
+      let suggested = undefined
+      const clean = text.replace(SUGGEST_TAG_RE, (match, id) => {
+        suggested = id
+        return ''
+      })
+      return { text: clean, suggested }
+    }
+    function tidyAfterStrip(text) {
+      if (typeof text !== 'string') return ''
+      let t = text.replace(/[ \t]+$/gm, '')
+      t = t.replace(/\n{3,}/g, '\n\n')
+      const lines = t.split('\n')
+      let inFence = false
+      for (let i = 0; i < lines.length; i++) {
+        if (/^\s*```/.test(lines[i])) inFence = !inFence
+        if (!inFence) lines[i] = lines[i].replace(/ {2,}/g, ' ')
+      }
+      return lines.join('\n').trim()
+    }
+    function resolveSuggestion(suggested, currentModeId) {
+      if (typeof suggested !== 'string' || !hasMode(suggested)) return null
+      if (suggested === currentModeId) return null
+      return suggested
     }
 
     // ==================== 设置:模式(人设)命名空间 ====================
@@ -484,10 +546,18 @@ return {
       if (route === undefined) throw new Error('未找到可用的默认模型,请在模型选择器中确认已配置模型')
       const history = sanitizeHistory(rawHistory)
       const messages = buildMessages(history, parsed.text)
-      const system = buildSystemPrompt(currentMode())
+      const mode = currentMode()
+      let system = buildSystemPrompt(mode)
+      if (mode === 'generic' && MODE_IDS.length > 1) system = system + SUGGEST_SEGMENT
+      let suggestion = null
+      const strip = (raw) => {
+        const st = stripSuggestTags(raw)
+        if (st.suggested !== undefined) suggestion = st.suggested
+        return tidyAfterStrip(st.text)
+      }
 
       let call = await callLlm(route, system, messages)
-      let output = call.text
+      let output = strip(call.text)
       let warning = undefined
 
       if (call.truncated) {
@@ -496,7 +566,7 @@ return {
             systemFeedback('你上次因思考过程过长而未输出正文。请直接给出简洁完整的增强结果,不要任何解释。'),
           ])
           const retry = await callLlm(route, system, retryMessages, 'session-title')
-          output = retry.text
+          output = strip(retry.text)
           if (retry.truncated) warning = '模型输出仍被截断'
         } else {
           const retryMessages = messages.concat([
@@ -504,7 +574,7 @@ return {
             systemFeedback('你的输出被长度上限截断。请把增强结果压缩得简洁完整后重新输出,不要任何解释。'),
           ])
           const retry = await callLlm(route, system, retryMessages)
-          output = retry.text
+          output = strip(retry.text)
           if (retry.truncated) warning = '模型输出仍被截断'
         }
       }
@@ -517,7 +587,7 @@ return {
           systemFeedback('你的上次输出未通过校验:' + validation.issues.join(';') + '。请直接输出修正后的完整文本,不要任何解释。'),
         ])
         const retry = await callLlm(route, system, retryMessages)
-        output = retry.text
+        output = strip(retry.text)
         if (retry.truncated) warning = warning === undefined ? '模型输出仍被截断' : warning + ';模型输出仍被截断'
         validation = validateOutput(output, parsed)
       }
@@ -548,8 +618,9 @@ return {
       if (output.length === 0) throw new Error('模型未返回增强结果,请重试')
       const result = { ok: true, enhanced: output }
       if (warning !== undefined) result.warning = warning
-      // 模式建议钩子:单模式时代恒为 null(与磁盘常驻版一致)
-      result.suggestedMode = null
+      const suggested = resolveSuggestion(suggestion, mode)
+      result.suggestedMode = suggested
+      if (suggested !== null && MODES[suggested] !== undefined) result.suggestedModeLabel = MODES[suggested].name
       return result
     }
 
@@ -577,6 +648,8 @@ return {
       question: { label: '提问', text: '什么是RAG,它和微调有啥区别' },
       wellformed: { label: '已良好表达', text: '你是资深数据分析师。请用表格总结这份销售数据的趋势,输出三行结论。' },
       code: { label: '含代码提问', text: '这段代码有个bug,帮我看看怎么修:\n```python\ndef add(a, b):\n    retrun a + b\n```' },
+      design_image: { label: '设计·文生图', text: '帮我画个图,一个女孩在雨里撑伞,要那种很唯美的感觉' },
+      design_video: { label: '设计·首尾帧视频', text: '做个5秒的视频,开头是清晨的森林,结尾是晚霞的海边,镜头要慢慢推近' },
       multiturn: {
         label: '多轮修缮',
         text: '数据那部分太少了,再详细点,语气正式一些',
@@ -608,6 +681,7 @@ return {
             const result = await enhance(a.text)
             const item = { mode: 'text', input: a.text, ok: result.ok === true, enhanced: result.enhanced }
             if (result.warning !== undefined) item.warning = result.warning
+            item.suggestedMode = result.suggestedMode
             return { cases: [item] }
           } catch (err) {
             return { cases: [{ mode: 'text', input: a.text, ok: false, error: String(err && err.message !== undefined ? err.message : err) }] }
