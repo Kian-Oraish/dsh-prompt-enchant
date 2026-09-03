@@ -80,8 +80,9 @@ EOF
 fi
 
 echo "[3/3] 安装完成。重启 DSH 后生效:"
-echo "  · Host 半: POST /prompt-enhance/api/enhance、GET /prompt-enhance/icons/*、自检工具"
+echo "  · Host 半: POST /prompt-enhance/api/enhance、GET /prompt-enhance/api/modes、GET /prompt-enhance/icons/*、自检工具"
 echo "  · Client 半: 输入框工具行魔法棒(经 clientModules 自动加载)"
+echo "  · 设置后台(新框架):「设置 → 插件」页「提示词附魔棒 · 增强模式」卡片,即选即存"
 echo "  · 更新:修改仓库代码后重新执行本脚本并重启"
 echo "  · 回滚:mv $TARGET_DIR.bak $TARGET_DIR,重启"
 echo "  · 卸载:rm -rf $TARGET_DIR,并从 $PATCH_FILE 移除 id: prompt-enhance 的 insert 块"

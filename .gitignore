@@ -1,3 +1,6 @@
 # 本地打包产物与依赖目录,不提交
 *.tgz
 node_modules/
+
+# macOS 元数据
+.DS_Store

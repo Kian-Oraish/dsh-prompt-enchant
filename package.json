@@ -1,9 +1,12 @@
 {
   "name": "dsh-prompt-enhance",
-  "version": "0.2.3",
-  "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载)",
+  "version": "0.3.0",
+  "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载;支持人设模式切换)",
   "type": "module",
   "main": "lib/index.js",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
   "exports": {
     ".": {
       "default": "./lib/index.js"
@@ -48,6 +51,7 @@
     "lib/index.js",
     "lib/client.js",
     "lib/ref-guard.js",
+    "lib/modes.js",
     "cordis.patch.yml",
     "config/",
     "assets/icons/",
