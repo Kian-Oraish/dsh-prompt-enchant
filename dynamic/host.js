@@ -298,11 +298,15 @@ return {
     // 动态插件无 import:用手写「函数 + toJSON」schema(满足 ctx.settings
     // resolve/toJSON 契约);磁盘常驻版优先 schemastery。注册失败/服务缺失
     // 时恒为「通用」。注意:与磁盘常驻版同时运行时命名空间会重复注册,
-    // 自测时二选一启用。
-    const settingsService = ctx.get('settings')
+    // 自测时二选一启用。设置服务提供时机可能晚于本插件 apply(顺序竞态,
+    // 已在 alpha.5 实测复现),故惰性获取 + 'service' 事件补挂。
     let modeScope = undefined
     let settingsRegistered = false
-    if (settingsService !== undefined && typeof settingsService.register === 'function') {
+    let settingsFailed = false
+    function ensureSettings() {
+      if (settingsRegistered || settingsFailed) return
+      const settingsService = ctx.get('settings')
+      if (settingsService === undefined || typeof settingsService.register !== 'function') return
       try {
         const schemaFn = (value) => {
           const mode = value !== null && typeof value === 'object' && typeof value.mode === 'string' ? value.mode : undefined
@@ -323,10 +327,16 @@ return {
         })
         settingsRegistered = true
       } catch (err) {
+        settingsFailed = true
         console.error('dsh-prompt-enhance(dynamic): 注册设置命名空间失败:', err)
       }
     }
+    ensureSettings()
+    if (!settingsRegistered && !settingsFailed) {
+      try { ctx.on('service', () => { ensureSettings() }) } catch (err) { console.error('dsh-prompt-enhance(dynamic): 监听 service 事件失败:', err) }
+    }
     function currentMode() {
+      ensureSettings()
       if (modeScope === undefined) return defaultMode()
       try {
         const value = modeScope.get()
@@ -653,8 +663,9 @@ return {
           out.stepError = String(err && err.message !== undefined ? err.message : err)
         }
         out.settings = {
-          service: settingsService !== undefined,
-          registered: settingsRegistered,
+          service: (() => { try { return ctx.get('settings') !== undefined } catch (err) { return false } })(),
+          registered: (ensureSettings(), settingsRegistered),
+          failed: settingsFailed,
           mode: currentMode(),
           modes: publicModes().map((m) => m.id),
         }
