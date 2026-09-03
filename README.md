@@ -171,14 +171,14 @@ dsh-prompt-enchant/
 
 ## 兼容性与安全
 
-**框架契约**(已在 DSH **0.1.1-rc.2** 实测验证,含全部演示素材;并已按 **0.1.2-alpha.2 / alpha.5** 磁盘类型契约逐项核对):`conversation.input.right` 槽位注册(`id/order/label`,kind=list/scope=session)与 InputZone 标准 props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`;v0.3.0 起额外使用官方 `ctx.settings`(命名空间 `prompt-enhance`)与设置后台槽位 `settings.plugin.item`(key=`prompt-enhance`),均按 alpha.5 源码逐行核对。
+**框架契约**(已在 DSH **0.1.1-rc.2** 实测验证,含全部演示素材;并已按 **0.1.2-alpha.2 / alpha.5** 磁盘类型契约逐项核对):`conversation.input.right` 槽位注册(`id/order/label`,kind=list/scope=session)与 InputZone 标准 props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`;v0.3.0 起额外使用官方 `ctx.settings`(命名空间 `prompt-enhance`)与设置后台左侧一级栏目槽位 `settings.section`(order 19,与「提示词库」同款),均按 alpha.5 源码逐行核对。
 
 **版本兼容矩阵**:
 
 | DSH 版本 | 增强 | 多轮上下文 | @ 引用处理 | 设置后台(模式切换) |
 | --- | --- | --- | --- | --- |
 | 0.1.1-rc.2(已实测) | ✅ | ✅(`useSession` 快照) | ✅ 增强后引用逐字保留、chip 状态与发送序列化注入完整保留 | ❌ 无设置入口,恒用「通用」模式 |
-| 0.1.2-alpha.x(alpha.5 契约已核对) | ✅ | ⚠️ 降级为单轮(`useSession` 已移除,`useConversation` 不含消息历史) | ⚠️ 输入机改为 Lexical 编辑器,公开 API 无引用重插动词,`setDraft` 会把引用 chip 退化为文本提及(发送时不再注入文件内容)——因此**含 @ 引用的草稿在该版本下按钮禁用**(悬停可见说明),以保护引用完整性;无引用草稿正常增强 | ✅ 「设置 → 插件」页卡片单选模式、即选即存(当前仅「通用」;垂类模式后续随注册表扩充) |
+| 0.1.2-alpha.x(alpha.5 契约已核对) | ✅ | ⚠️ 降级为单轮(`useSession` 已移除,`useConversation` 不含消息历史) | ⚠️ 输入机改为 Lexical 编辑器,公开 API 无引用重插动词,`setDraft` 会把引用 chip 退化为文本提及(发送时不再注入文件内容)——因此**含 @ 引用的草稿在该版本下按钮禁用**(悬停可见说明),以保护引用完整性;无引用草稿正常增强 | ✅ 「设置」左侧一级栏目「提示词附魔棒」:单选模式、即选即存(当前仅「通用」;垂类模式后续随注册表扩充) |
 | 更早版本(无客户端槽位系统) | ⚠️ 按钮不渲染 | — | — | — |
 
 `dsh.client.inject` 仅声明客户端模块图中实际存在的包(`locale`/`ui-conversation`;`dsh-client-runtime`、`dsh-client-ui-slots` 在新版本中已不存在,本包亦未引用,故不在注入清单);客户端 bundle 仅 `require('react')`,槽位服务经 `ctx.get('slots')` 获取。设置卡片经 `ctx.get('settingsScope')` 惰性挂载(不加入注入清单,旧框架/加载竞态下静默跳过,魔棒不受影响)。
