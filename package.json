@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-enhance",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载;支持人设模式切换)",
   "type": "module",
   "main": "lib/index.js",
@@ -17,12 +17,16 @@
     "./package.json": "./package.json"
   },
   "dsh": {
+    "engines": {
+      "dsh": ">=0.1.5-rc.2 <0.2.0"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-conversation"
       ],
       "platform": "web"
@@ -32,7 +36,12 @@
     "node": ">=20"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": "*"
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.2.0",
+    "@deepseek-ai/schemastery": ">=3.18.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "3.18.2"
   },
   "keywords": [
     "dsh",
@@ -50,8 +59,10 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/ref-guard.js",
     "lib/modes.js",
+    "lib/ref-guard.js",
+    "lib/suggest.js",
+    "lib/confirm.js",
     "cordis.patch.yml",
     "config/",
     "assets/icons/",
