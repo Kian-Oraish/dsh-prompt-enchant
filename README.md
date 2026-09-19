@@ -13,21 +13,25 @@
    git clone https://github.com/Kian-Oraish/dsh-prompt-enchant.git
    cd dsh-prompt-enchant
    ```
-2. 执行安装脚本(幂等,可重复执行;会把插件复制到 DSH 插件目录并注册组合配置):
+2. 执行安装脚本(幂等,可重复执行;会**把插件目录符号链接到本仓库**并注册组合配置):
    ```bash
    ./install.sh
    ```
    脚本做的事:
-   - 复制插件到 `$HOME/.dsh/profiles/web/node_modules/dsh-prompt-enhance/`;
+   - 把 `$HOME/.dsh/profiles/web/node_modules/dsh-prompt-enhance` 做成指向本仓库的**符号链接**(v0.7.0 起;若该位置是旧式实体副本会先备份为 `.bak` 再迁移);
    - 在 `$HOME/.dsh/profiles/web/cordis.patch.yml` 中注册 `- insert: - id: prompt-enhance` 组合行。
 3. **重启 DSH**(Web 界面所属的 dsh 进程)即可生效——无需每次粘贴代码;
 4. 输入框右下角出现星星魔法棒:输入口语化需求 → 点星星 → 增强回填 → 编辑后发送。
 
-**更新 / 卸载**:
-- 更新:修改仓库代码后重新执行 `./install.sh` 并重启;
-- 卸载:删除 `$HOME/.dsh/profiles/web/node_modules/dsh-prompt-enhance/`,并从 `cordis.patch.yml` 移除 `id: prompt-enhance` 的 insert 块,重启即可。
+> ⚠️ **改了 `lib/client.js` 必须重启 DSH,浏览器刷新不够**。客户端 bundle 在服务端按**内容哈希(rev)** 缓存在内存里,不重启就继续发旧字节。Host 半(路由/工具)同理。
 
-> 备选「动态插件」方式(免重启、进程内临时生效):把 `dynamic/host.js` 与 `dynamic/client.js` 分别粘贴进 DSH Web GUI 的插件面板运行;重启后需重新粘贴。磁盘常驻版与动态版功能一致,推荐使用常驻版。
+**更新 / 卸载**:
+- 更新:因为装的是符号链接,**只需重启 DSH**(`launchctl kickstart -k gui/501/com.deepseek.dsh.web`)即可生效,不必重跑 `install.sh`;
+- 自检:`./install.sh --check`(只读校验链接 / 组合 / 契约哨兵,不一致时 exit 1);
+- 卸载:删除该符号链接,并从 `cordis.patch.yml` 移除 `id: prompt-enhance` 的 insert 块,重启即可;
+- 回滚:若迁移时产生过 `.bak`,`rm -f` 符号链接后 `mv` 回去即可。
+
+> v0.6.0 起已移除「动态插件」形态(其粘贴镜像早已冻结,与 README 描述不符),本插件只提供磁盘常驻安装。
 
 ## ✨ 特性
 
@@ -81,25 +85,27 @@
 回填输入框(可编辑)→ 用户确认 → 发送执行
 ```
 
-架构形态:Host 半(ESM Cordis 插件)挂载于 DSH 组合,提供 `/prompt-enhance/api/enhance` 与图标路由;Client 半为预构建 web bundle,由 DSH clientModules 自动伺服与加载,经 HTTP 与 Host 通信。改写调用是**独立调用**,不注入、不修改 agent 自身的系统提示词。
+架构形态:Host 半(ESM Cordis 插件)挂载于 DSH 组合,提供 `/prompt-enhance/api/{enhance,modes,token}` 三条鉴权路由;Client 半为预构建 web bundle,由 DSH clientModules 自动伺服与加载(URL 带内容哈希 `rev`,故改客户端代码后必须重启守护),经 HTTP 与 Host 通信。改写调用是**独立调用**,不注入、不修改 agent 自身的系统提示词。
 
 ## 目录结构
 
 ```
 dsh-prompt-enchant/
 ├── README.md / README.en.md    # 中英双语文档
+├── CHANGELOG.md                # 版本变更记录
 ├── LICENSE
-├── package.json                # 插件包元信息(dsh.bundle + dsh.client 声明)
+├── package.json                # 插件包元信息(顶层 engines.dsh + dsh.bundle + dsh.client 声明)
 ├── cordis.patch.yml            # 组合补丁:注册 id: prompt-enhance 行
-├── install.sh                  # 一键安装(复制到插件目录 + 配置引用 + 提示重启)
+├── install.sh                  # 一键安装(符号链接到本仓库 + 配置引用 + 提示重启;支持 --check)
 ├── lib/
-│   ├── index.js                # Host 半:增强管线、HTTP 路由、自检工具
+│   ├── index.js                # Host 半:增强管线、HTTP 路由、会话历史派生、自检工具
 │   └── client.js               # Client 半(预构建 bundle):魔法棒按钮与交互
 ├── config/
 │   └── enhance-prompt.md       # 可调优:改写系统提示词全文
-├── dynamic/                    # 备选:动态插件形态(免重启粘贴式)
-│   ├── host.js
-│   └── client.js
+├── tests/                      # 离线单测(node --test)
+│   ├── contract-sentinel.mjs   # 框架契约哨兵(8 条断言,框架升级后跑一次)
+│   ├── contract-sentinel.test.mjs
+│   └── host-contract.test.mjs  # 路由鉴权/令牌闸门/会话历史派生/成本闸门/错误码
 └── assets/icons/               # 模式图标(随包内置;UI 用内联 SVG currentColor)
     ├── sparkle.svg             # 通用模式 · 四角闪光星
     ├── design.svg              # 设计模式 · 吉祥物星(evenodd)
@@ -109,6 +115,8 @@ dsh-prompt-enchant/
     ├── sparkle_black_128.png   # 位图备选(亮色主题用)
     └── sparkle_white_128.png   # 位图备选(暗色主题用)
 ```
+
+> v0.7.0 起 `/prompt-enhance/icons/*.png` 两条路由**已删除**(客户端早已改用内联 SVG,从不请求它们;它们是当时唯一绕过鉴权栅栏的路径)。`assets/icons/` 仍随包保留备用,但不再有任何路由消费。
 
 ## 配置项
 
@@ -142,7 +150,16 @@ dsh-prompt-enchant/
 | --- | --- | --- | --- | --- |
 | 0.1.1-rc.2(已实测) | ✅ | ✅(`useSession` 快照) | ✅ 增强后引用逐字保留、chip 状态与发送序列化注入完整保留 | ❌ 无设置入口,恒用「通用」模式 |
 | 0.1.2-alpha.x(alpha.5 契约已核对) | ✅ | ⚠️ 降级为单轮(`useSession` 已移除,`useConversation` 不含消息历史) | ⚠️ 输入机改为 Lexical 编辑器,公开 API 无引用重插动词,`setDraft` 会把引用 chip 退化为文本提及(发送时不再注入文件内容)——因此**含 @ 引用的草稿在该版本下按钮禁用**(悬停可见说明),以保护引用完整性;无引用草稿正常增强 | ✅ 「设置」左侧一级栏目「提示词附魔棒」:单选模式、即选即存(当前仅「通用」;垂类模式后续随注册表扩充) |
+| **0.1.6-alpha.2(v0.7.0 实测)** | ✅ | ✅ **宿主侧派生历史**(`sessions.deriveMessages()`),感知 compaction | ✅ 含 @ 引用时**按钮禁用**(fail-closed);见下方「v0.7.0 修复」 | ✅ 同上,并补声明 `dsh-client-ui-settings` |
 | 更早版本(无客户端槽位系统) | ⚠️ 按钮不渲染 | — | — | — |
+
+**v0.7.0 修复(针对 0.1.6 的实测漂移)**:
+
+1. **引用保护闸门曾被静默关闭(重要)**:旧版用**版本嗅探**判断是否处于新框架——`newFramework = (typeof useSession !== 'function') && (typeof useConversation === 'function')`。0.1.6-alpha.2 **同时**提供这两个 hook,于是该值为 `false`,闸门**一直没生效**:含 @ 引用的草稿照样被送去增强。现改为**事实判定**(只看 occurrence 表里是否真有引用),不再嗅探版本。
+2. **多轮上下文曾静默降级为单轮**:旧版从客户端会话快照取历史,但 `SessionSnapshot` 与 `ConversationSnapshot` 都**没有** `nodes` 字段,三条取用分支全部落空、`extractHistory` 恒返回 `[]`。现改为**宿主侧**用 `ctx.get('sessions').get(sessionId).deriveMessages()`——那是框架自己喂给模型的**权威派生历史**(感知 compaction、已缓存、深冻结),客户端只需发送 `sessionId`。
+3. **`dsh.engines.dsh` 曾是幽灵字段**:它不在官方 `DshManifest` schema 上(正确位置是**顶层** `engines.dsh`),且框架内**没有任何 reader**。0.1.5 起就从未生效。现挪到顶层并加强断言。
+4. **semver 区间曾把当前框架排除在外**:`>=0.1.5-rc.2 <0.2.0` 因 npm 的 prerelease 规则**不匹配** `0.1.6-alpha.2`(也不匹配任何 0.1.6-alpha.x)。现为 `>=0.1.6-alpha.0 <0.2.0`。
+5. **客户端死兜底**:`ctx.on('service', …)` 中的 `'service'` 事件在 cordis 4.x **不存在**(真实名 `internal/service`),该兜底从未生效;已换成 `ctx.inject(['slots','settingsScope'], …)`。
 
 `dsh.client.inject` 仅声明客户端模块图中实际存在的包(`locale`/`ui-conversation`;`dsh-client-runtime`、`dsh-client-ui-slots` 在新版本中已不存在,本包亦未引用,故不在注入清单);客户端 bundle 仅 `require('react')`,槽位服务经 `ctx.get('slots')` 获取。设置卡片经 `ctx.get('settingsScope')` 惰性挂载(不加入注入清单,旧框架/加载竞态下静默跳过,魔棒不受影响)。
 
@@ -156,12 +173,53 @@ dsh-prompt-enchant/
 
 **@ 引用保护**(`@文件名` / `@文件路径` / `@会话名` 等):增强时引用记号被视为不可触碰的占位符——改写提示词硬性规则要求逐字原样保留、顺序不变,输出经确定性校验,未通过则重试一次、仍失败则整体回退原文;客户端回填按「引用间隙」分段替换(仅改写引用之间的正文),引用的 occurrence 状态与发送时的文件序列化能力完全不受影响;撤销同样只恢复各间隙原文。
 
-**安全边界**:
-- API 依赖 DSH webServer 默认回环绑定(`127.0.0.1`);若部署改为 `0.0.0.0`,外部暴露风险请自担;
-- 请求级防护:仅接受 `application/json`;拒绝跨源/跨站请求(`Origin`/`Sec-Fetch-Site` 校验);并发上限 2(超出返回 429);请求体上限 4MB;
-- 响应加固:`Cache-Control: no-store` + `X-Content-Type-Options: nosniff`;
-- 输出净化:剥离 Markdown 装饰、emoji、双向控制符与零宽字符(显示层注入防护);
-- 无鉴权设计——请勿在共享主机暴露该端口;路由/工具注册均带容错,框架演进时降级而不崩溃。
+**安全模型与威胁边界**(v0.6.0 起建立,v0.7.0 补第二道闸):
+
+API 路由经**两道**闸门,全部失败关闭(fail-closed):
+
+1. **框架栅栏**:复用官方 `ctx.connection.requestRejection(req)`,等价于 `isTrustedApiRequest`(Host 必须是回环或显式可信主机、`Sec-Fetch-Site` 非 cross-site、`Origin` 必须与 `Host` 同源)+ 浏览器会话鉴权(绑定 Host 的签名 `HttpOnly` cookie)。未鉴权 → 401,Host/Origin 不受信 → 403。`connection` 服务缺席 → **503 拒绝**,绝不降级为放行。
+2. **进程级令牌**(v0.7.0):Host 每进程随机生成 32 字节令牌,客户端经 `GET /prompt-enhance/api/token`(过框架栅栏)取一次、**仅存内存**(不写 `localStorage`/`sessionStorage`),此后每个请求带 `X-Prompt-Enhance-Token`,服务端用 `timingSafeEqual` 常量时间比对。缺令牌/错令牌 → 403。
+
+> ✅ **挡得住**:未鉴权的本机其他用户/进程、DNS-rebinding 页面、跨站表单与脚本、浏览器侧 XSS/被诱导页面/扩展(它们能借到 cookie 但读不到 DSH 进程内存)、跨 DSH 重启的重放(令牌每进程轮换)。
+>
+> ❌ **挡不住**:**以你本人身份运行的本地进程**。它能读 `~/.dsh/.credentials.yaml` 自取会话 cookie,也就同样能自己走完这两道闸。令牌是**纵深防御的一层,不是特权边界**——请不要把它当作"本机沙箱"。
+>
+> **排障**:若浏览器里增强报 401,先看地址栏是 `localhost:3080` 还是 `127.0.0.1:3080`——cookie 名由 `Host` 头哈希而来,两者**不通用**,换地址需用 `dsh web` 打印的带 `?token=` 的 URL 重新换 cookie。
+
+其余请求级防护:仅接受 `application/json`(挡简单跨站表单);`POST`-only;滑动窗口限流 20 次/分钟;并发两道上限(模型调用 2、HTTP 请求 4);请求体上限 4MB;响应 `Cache-Control: no-store` + `X-Content-Type-Options: nosniff`;错误响应只回**稳定 code + 白名单文案**,绝不回显 provider/内部原文;输出净化(剥离 Markdown 装饰、emoji、双向控制符与零宽字符)。
+
+**成本闸门**(v0.7.0):单次增强最坏触发 4 次模型调用(首调 + 空正文重试 + 校验重试 + 弹窗后重跑)。因此:模型调用数独立计数(`MAX_MODEL_INFLIGHT=2`),**弹窗等待期间释放 HTTP 名额**(旧版 90 秒占着名额会把第三个真实请求 429 掉,已降到 45 秒);45 秒超时走框架 `deadline()` 并**真正取消旧流**;浏览器关标签 / 切换会话 → 请求 socket 关闭即 abort,不再空占;用户取消**绝不重试**。Agent 可见的 `prompt_enhance_selftest` 工具**默认关闭**(它一跑就是 12 个真实模型调用),需要时在组合行加 `config: { debugTools: true }`。
+
+## 未采纳的官方件(附理由,避免后人重复建议)
+
+框架里确实存在「更框架化」的替代品,但本插件**刻意不采用**,理由如下 —— 它们不是技术债,是权衡结果:
+
+| 官方件 | 本插件现状 | 不采纳的理由 |
+| --- | --- | --- |
+| `ctx.connection.fetch.register({path, methods, fetch})` | 自建 exact 路由 + 显式调用 `requestRejection` | 该 API 的 `assertFetchRoute` 要求路径**必须位于 `/api/` 之下**且每段匹配 `/^[A-Za-z0-9_$.-]+$/`。采用它意味着把四处路由从 `/prompt-enhance/*` 改名为 `/api/prompt-enhance/*` 并同步改写客户端——用**已经实测验证过**的栅栏(401/403 行为已固化进测试)去换一个尚未实测的通道,风险不对称。 |
+| `settings.installSection(owner, ns, schema, entry, hooks)` | `ctx.inject(['settings'], cb)` + `register(ns, schema, {base, validate})` | `installSection` 面向的是「有组合 entry 作为 base/fallback 的可选设置消费者」;本插件的 `base` 本来就是 schema 默认值,用它收益为零,反而会改动当前**唯一零漂移**的部分(设置卡片)。 |
+| `props.useTrajectory`(客户端取消息历史) | 宿主侧 `sessions.deriveMessages()` | `TrajectorySnapshot.eventNodes` 确实带 `kind`/`content`/`blocks`,形状够用;但它是**事件窗口**视图(还带 `eventLocations`/`partial`),不是权威派生历史,长会话下会缺头部,且要在客户端重做角色/预算/压缩裁剪。宿主侧那份就是框架喂给模型的历史,并且能用纯单测覆盖。 |
+| npm 发布 + `dsh plugin add` | 磁盘常驻 + `install.sh` 符号链接 | `dsh plugin add` 转发给 pnpm,会引入 peerDependencies 解析面(且 prerelease 语义坑多)。当前只服务本机一个 profile,收益不足。 |
+
+## 已知风险与未来兼容
+
+1. **`dsh-tools` 的 PTC 模式(未实测)**:0.1.6 新增 `mode: 'ptc' | 'both'`。类型注释明确:**PTC 模式下,模型直接发起的原生工具调用会被拒绝**(只有带 parent 的调用才允许执行原生工具名)。当前 profile 是默认 `native`,风险**惰性**;若将来启用 PTC,本插件的工具将只能经 `run_code` 抵达。**本插件未在 PTC 模式下实测过**。
+2. **`patchReload` 已空转**:`~/.dsh/profiles/web/package.json` 里的 `"patchReload": "live"` 在 0.1.6 已从 `DshProfileManifest` 类型中移除,且全树 grep 无 reader。**不要依赖 patch 热重载**——改完配置请重启守护。
+3. **框架无官方 CHANGELOG / 迁移说明**:本插件的兼容性结论全部来自对已安装框架源码的**逐字节 diff 与 grep**,不是官方发布说明。这也是为什么需要有下面的契约哨兵。
+
+## 契约哨兵(框架漂移的自动报警器)
+
+本次升级暴露的真正问题不是「框架改了一个 API」,而是「**框架改了,而没有任何东西会告诉你**」——引用闸门静默失效、多轮上下文静默降级,48 个单测全部通过。所以本插件把依赖的框架契约写成**可执行断言**:
+
+```bash
+npm test          # 默认包含哨兵(框架漂移会红)
+npm run sentinel  # 只跑哨兵
+PE_SKIP_SENTINEL=1 npm test   # 只验插件自身逻辑时跳过
+```
+
+哨兵逐条断言(共 8 条):`connection.requestRejection` 仍在且 401/403 语义未变;8 个关键框架包与签名齐全;`GenerateOptions` 字段名与 `purpose` 取值域未变;两个会话快照仍**不含** `nodes`;`useTrajectory` 仍在但其窗口语义未被误用;`dsh.client.inject` 四项在框架树中可解析;`slots` 与两个槽位声明仍在;`data-ds-dark-theme` 与错误色令牌仍有效;顶层 `engines.dsh` 区间覆盖当前框架版本。
+
+**框架升级后跑一次即可**:失败即特征(契约漂移),不是噪音 —— 失败信息直接指向要改哪一处。若框架装在非默认位置,用 `DSH_FRAMEWORK_DIR` 指向 `…/node_modules/@deepseek-ai`。
 
 ## License
 

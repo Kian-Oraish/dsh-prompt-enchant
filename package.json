@@ -1,11 +1,13 @@
 {
   "name": "dsh-prompt-enhance",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载;支持人设模式切换)",
   "type": "module",
   "main": "lib/index.js",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:no-sentinel": "PE_SKIP_SENTINEL=1 node --test tests/*.test.mjs",
+    "sentinel": "node tests/contract-sentinel.mjs"
   },
   "exports": {
     ".": {
@@ -16,10 +18,12 @@
     },
     "./package.json": "./package.json"
   },
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.1.6-alpha.0 <0.2.0"
+  },
   "dsh": {
-    "engines": {
-      "dsh": ">=0.1.5-rc.2 <0.2.0"
-    },
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
@@ -27,20 +31,20 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-renderer",
-        "@deepseek-ai/dsh-client-ui-conversation"
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-settings"
       ],
       "platform": "web"
     }
   },
-  "engines": {
-    "node": ">=20"
-  },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.2.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.6-alpha.0 <0.2.0",
+    "@deepseek-ai/dsh-timeout": ">=0.1.6-alpha.0 <0.2.0",
+    "@deepseek-ai/dsh-util-crypto": ">=0.1.6-alpha.0 <0.2.0",
     "@deepseek-ai/schemastery": ">=3.18.0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.6-alpha.2",
     "@deepseek-ai/schemastery": "3.18.2"
   },
   "keywords": [
@@ -68,6 +72,7 @@
     "assets/icons/",
     "README.md",
     "README.en.md",
+    "CHANGELOG.md",
     "LICENSE",
     "install.sh",
     "screenshots.json"

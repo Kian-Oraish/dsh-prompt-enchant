@@ -156,12 +156,22 @@ The disk-resident form reads optional row `config` (all values have defaults):
 
 **@ reference protection** (`@filename`, `@file-path`, `@session-name`, ...): reference tokens are treated as untouchable placeholders during enhancement — a hard prompt rule requires them to be preserved verbatim and in order, the output is verified deterministically, a failed check triggers one retry and then falls back to the original text; the client fills the result back gap-by-gap (only the prose between references is rewritten), so the references' occurrence state and send-time file serialization are fully preserved; undo restores only the gap texts as well.
 
-**Security boundaries**:
-- The API rides DSH's webServer, loopback-bound (`127.0.0.1`) by default; if a deployment binds `0.0.0.0`, the exposure risk is yours;
-- Request-level guards: `application/json` only; cross-origin/cross-site requests rejected (`Origin` / `Sec-Fetch-Site` checks); in-flight cap of 2 (429 above); 4MB body limit;
-- Response hardening: `Cache-Control: no-store` + `X-Content-Type-Options: nosniff`;
-- Output sanitization: strips Markdown decoration, emoji, bidi control and zero-width characters (display-layer injection defense);
-- No authentication by design — do not expose this port on a shared host; route/tool registration is fault-tolerant and degrades instead of crashing when the framework evolves.
+**Security model and threat boundaries** (established in v0.6.0, second gate added in v0.7.0):
+
+API routes pass through **two** gates, both fail-closed:
+
+1. **Framework fence** — the official `ctx.connection.requestRejection(req)`, i.e. `isTrustedApiRequest` (Host must be loopback or an explicitly trusted authority, `Sec-Fetch-Site` not cross-site, `Origin` same-origin with `Host`) plus browser session auth (an `HttpOnly` signed cookie bound to the Host). Unauthenticated → 401; untrusted Host/Origin → 403. A missing `connection` service → **503, never a fall-through**.
+2. **Per-process token** (v0.7.0) — the host generates a random 32-byte token per process; the client fetches it once from `GET /prompt-enhance/api/token` (behind the framework fence), keeps it **in memory only** (never Web Storage), and sends it as `X-Prompt-Enhance-Token`; the host compares with `timingSafeEqual`. Missing/wrong token → 403.
+
+> ✅ **Stops**: unauthenticated local users/processes, DNS-rebinding pages, cross-site forms and scripts, browser-side XSS / lured pages / extensions (they can borrow the cookie but cannot read DSH process memory), and replay across DSH restarts (the token rotates per process).
+>
+> ❌ **Does not stop**: **a local process running as you**. It can read `~/.dsh/.credentials.yaml`, obtain the session cookie, and walk through both gates itself. The token is **one layer of defense in depth, not a privilege boundary** — do not treat it as a local sandbox.
+>
+> **Troubleshooting**: if enhancement returns 401 in the browser, first check whether the address bar says `localhost:3080` or `127.0.0.1:3080` — the cookie name is derived from the `Host` header, so the two are **not interchangeable**; switch by reopening the `?token=` URL printed by `dsh web`.
+
+Other request-level guards: `application/json` only (blocks simple cross-site forms); `POST`-only; sliding-window rate limit of 20/minute; two in-flight caps (2 model calls, 4 HTTP requests); 4MB body limit; `Cache-Control: no-store` + `X-Content-Type-Options: nosniff`; error responses return a **stable code plus whitelisted text**, never raw provider/internal messages; output sanitization (Markdown decoration, emoji, bidi control and zero-width characters stripped).
+
+**Cost gates** (v0.7.0): a single enhancement can trigger up to 4 model calls (first call + empty-body retry + validation retry + post-dialog rerun). Therefore model calls are counted independently (`MAX_MODEL_INFLIGHT=2`), the **HTTP slot is released while the confirmation dialog waits** (the old 90-second hold could 429 a third real request; now 45 seconds), the 45-second timeout goes through the framework's `deadline()` and **actually cancels the old stream**, closing the tab / switching sessions aborts via the request socket instead of idling, and a user cancellation is **never retried**. The agent-visible `prompt_enhance_selftest` tool is **off by default** (it runs 12 real model calls); enable it with `config: { debugTools: true }` on the composition line.
 
 ## License
 
