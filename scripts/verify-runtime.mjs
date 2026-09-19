@@ -78,7 +78,7 @@ function makeCookie(overrides = {}) {
   return `${COOKIE_NAME}=v1.${body}.${sig}`
 }
 
-function call(path, { method = 'GET', headers = {}, body, cookie } = {}) {
+function call(path, { method = 'GET', headers = {}, body, cookie, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   const n = ++seq
   const started = Date.now()
   return new Promise((resolve, reject) => {
@@ -97,8 +97,8 @@ function call(path, { method = 'GET', headers = {}, body, cookie } = {}) {
     // 有界:插件的「客户端断开即 abort」一旦回归,某些请求会**永不回写响应**。
     // 探针必须让它明确失败并指出是哪一个请求,而不是自己也跟着静默卡死
     // (曾把整个探针卡在无输出状态,last-exit 142,排查成本极高)。
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
-      req.destroy(new Error(`请求超时(${REQUEST_TIMEOUT_MS}ms):服务端未回写响应`))
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`请求超时(${timeoutMs}ms):服务端未回写响应`))
     })
     req.on('error', reject)
     if (body !== undefined) req.write(body)
@@ -165,6 +165,30 @@ expect('不回显内部原文/栈', /at .*\(|\bstack\b|Error:/i.test(empty.body)
 
 say('\n【E】已删除的死路由')
 expect('GET /icons/black.png → 404', (await call('/prompt-enhance/icons/black.png', { cookie: null })).status, 404)
+
+// --- 【F】真实增强调用(可选,消耗一次真实模型调用) ---
+// 上面 A–E 全部**不碰模型**,所以探针默认零成本、可随时跑。但用户点魔棒走的
+// 恰恰是需要真实模型参与的那条路,而 0.7.0 的挂起缺陷正好只在这条路上暴露。
+// 用 PE_LIVE_ENHANCE=1 打开这一段做端到端验收。模型调用上限 45 秒,故放宽到 60 秒。
+if (process.env.PE_LIVE_ENHANCE === '1') {
+  say('\n【F】真实增强调用(端到端,消耗一次模型调用)')
+  const live = await call('/prompt-enhance/api/enhance', {
+    method: 'POST',
+    headers: { 'X-Prompt-Enhance-Token': token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: '帮我写个周报,给老板看的那种,数据要清楚一点,别太长' }),
+    timeoutMs: 60000,
+  })
+  expect('增强请求返回 200(不得挂住在加载态)', live.status, 200)
+  let liveJson = {}
+  try { liveJson = JSON.parse(live.body) } catch (err) { /* 下面断言会指出 */ }
+  expect('ok = true', liveJson.ok, true)
+  const gotText = typeof liveJson.enhanced === 'string' && liveJson.enhanced.length > 0
+  expect('确实返回了增强文本', gotText, true)
+  if (gotText) say(`   · 增强结果前 160 字:${liveJson.enhanced.slice(0, 160).replaceAll('\n', ' ⏎ ')}`)
+  if (liveJson.warning !== undefined) say(`   · warning: ${liveJson.warning}`)
+} else {
+  say('\n(跳过【F】真实增强调用:设 PE_LIVE_ENHANCE=1 可做端到端验收,会消耗一次模型调用)')
+}
 
 say(`\n结果:${pass} 通过 / ${fail} 失败\n`)
 process.exit(fail === 0 ? 0 : 1)
