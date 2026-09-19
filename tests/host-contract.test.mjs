@@ -10,6 +10,11 @@
 // ============================================================================
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+// 版本的单一事实源。诊断工具自报的版本必须与它一致 —— 断言里写死字面量
+// 会让「改了 package.json 忘了改诊断工具」静默通过,这正是要防的。
+const PKG_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 // ---------------------------------------------------------------------------
 // 最小框架替身
@@ -30,10 +35,13 @@ function makeWebServer() {
 
 /** 假请求/响应:记录状态码、响应头与响应体。
  *  statusCode 初值 200 与 node:http 一致(未显式设置时即为 200)。
- *  v0.7.0:补 on/removeListener —— 插件在 enhance 路由上用 req.on('close')
- *  做「浏览器关标签即 abort」,替身必须长得像 IncomingMessage。 */
+ *  v0.7.0:req 与 res 都要有 on/removeListener —— 插件的「客户端断开即 abort」
+ *  监听的是 **res 的 'close'**(不是 req 的,理由见 lib/index.js 路由注释),
+ *  两侧替身都必须长得像真正的 IncomingMessage / ServerResponse。 */
 function makeExchange({ method = 'GET', headers = {}, body = '' } = {}) {
   const listeners = new Map()
+  let consumedResolve
+  const consumedPromise = new Promise((r) => { consumedResolve = r })
   const req = {
     method,
     headers,
@@ -57,15 +65,43 @@ function makeExchange({ method = 'GET', headers = {}, body = '' } = {}) {
     listenerCount(event) { return (listeners.get(event) || []).length },
     async *[Symbol.asyncIterator]() {
       if (body.length > 0) yield Buffer.from(body, 'utf8')
+      // node 在请求体读完的那一刻触发 req 的 'close' —— 测试可以用这个 promise
+      // 精确对齐那个时刻,而不是靠 sleep/microtask 猜。
+      consumedResolve()
     },
+    consumedPromise,
   }
+  const resListeners = new Map()
   const res = {
     statusCode: 200,
     headers: {},
     body: '',
     bytes: 0,
+    // 忠实复刻 node:http:end() 之后 writableEnded 即为 true。
+    // 这个字段是插件判别「正常完成 vs 客户端断开」的唯一依据(见 enhance 路由注释),
+    // 替身少了它,回归测试就测不出那个 bug。
+    writableEnded: false,
+    on(event, fn) {
+      if (!resListeners.has(event)) resListeners.set(event, [])
+      resListeners.get(event).push(fn)
+      return res
+    },
+    removeListener(event, fn) {
+      const arr = resListeners.get(event)
+      if (arr !== undefined) {
+        const i = arr.indexOf(fn)
+        if (i >= 0) arr.splice(i, 1)
+      }
+      return res
+    },
+    /** 模拟连接断开(node:http 在响应结束或连接断开时触发一次 'close') */
+    emit(event) {
+      for (const fn of resListeners.get(event) || []) fn()
+    },
+    listenerCount(event) { return (resListeners.get(event) || []).length },
     setHeader(k, v) { this.headers[k.toLowerCase()] = v },
     end(chunk) {
+      this.writableEnded = true
       if (chunk === undefined) return
       if (Buffer.isBuffer(chunk)) { this.bytes = chunk.length; this.body += `<${chunk.length} bytes>`; return }
       this.body += String(chunk)
@@ -586,11 +622,11 @@ test('selftest 工具默认不注册(它一跑就是 12 个真实模型调用)',
   assert.ok(!names.includes('prompt_enhance_selftest'), 'selftest 默认必须关闭')
 })
 
-test('diag 工具自报 v0.7.0 的关键状态(栅栏/令牌/闸门/sessions)', async () => {
+test(`diag 工具自报 ${PKG_VERSION}(与 package.json 同源)的关键状态(栅栏/令牌/闸门/sessions)`, async () => {
   const { registeredTools } = await loadPlugin()
   const diag = registeredTools.find((t) => t.name === 'prompt_enhance_diag')
   const out = await diag.execute({}, { signal: new AbortController().signal })
-  assert.equal(out.version, '0.7.0')
+  assert.equal(out.version, PKG_VERSION, '诊断工具版本必须与 package.json 一致(禁止硬编码漂移)')
   assert.equal(out.security.token, 'enabled')
   assert.equal(out.security.fence, true)
   assert.equal(out.sessions, false, '本替身未提供 sessions → 应如实报 false')
@@ -630,4 +666,132 @@ test('错误码白名单:输入过长优先于输入为空(子串顺序)', async
   })
   await route.handler(req, res)
   assert.equal(JSON.parse(res.body).code, 'INPUT_TOO_LONG')
+})
+
+// ---------------------------------------------------------------------------
+// 9. 「客户端断开即 abort」不得误伤正常请求(用户实测抓到的严重缺陷)
+//    踩坑两次:① req.on('close') 在**请求体读完时**就触发 → 每个健康请求都被自己
+//    abort(点按钮立刻变红);② 加 writableEnded 守卫仍错,因为 req 的 close 触发得
+//    比 body 读完还早,于是请求被 abort 却不回写响应 → 客户端永久挂住。
+//    正解是监听 **res 的 'close'**(响应结束/连接断开时恰好一次)。
+//    这两个测试直接跑在**真实 node:http server** 上,不用替身 —— 替身模拟不出
+//    这套事件时序,这正是前两版修复都能"通过测试"却在生产翻车的原因。
+// ---------------------------------------------------------------------------
+import { createServer, request as httpRequest } from 'node:http'
+
+/** 用真实的 node:http 起一个只挂了插件 enhance 路由的服务器。 */
+async function withRealServer(llm, run) {
+  const mod = await import('../lib/index.js')
+  const routes = new Map()
+  const ctx = {
+    get: (n) => (n === 'connection' ? { requestRejection: () => undefined } : undefined),
+    on: () => () => {},
+    inject: (_n, cb) => cb(ctx),
+    effect: (f) => f(),
+    timeout: () => Promise.resolve(),
+    webServer: { register: (r) => { routes.set(r.path, r); return () => {} } },
+    tools: { register: () => () => {} },
+    llm,
+  }
+  mod.apply(ctx, { diagFile: '' })
+  const server = createServer((req, res) => {
+    const route = routes.get(new URL(req.url, 'http://x').pathname)
+    if (route === undefined) { res.writeHead(404); res.end(); return }
+    Promise.resolve(route.handler(req, res)).catch(() => {})
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  const port = server.address().port
+  try {
+    // 进程令牌由插件每进程随机生成,客户端先从带栅栏的令牌端点取一次 —— 测试
+    // 走与浏览器完全相同的两步(取令牌 → 带令牌请求),才能同时覆盖第二道闸。
+    // 少了这一步,请求会在闸门处被 403 挡掉、永远走不到模型,
+    // 而「等待模型被调用」的断开用例就会永久挂住(曾把整个测试文件卡死)。
+    const token = await getToken(port)
+    return await run({ port, token })
+  } finally {
+    // keep-alive 池里的连接会让 close() 永不回调 → 测试挂死。强制关闭。
+    server.closeAllConnections()
+    await new Promise((r) => server.close(r))
+  }
+}
+
+/** 走真实 HTTP 取进程令牌(与浏览器同一路径)。 */
+function getToken(port) {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port, path: TOKEN_PATH, method: 'GET' }, (res) => {
+      let data = ''
+      res.on('data', (c) => { data += c })
+      res.on('end', () => {
+        if (res.statusCode !== 200) { reject(new Error(`令牌端点应 200,实际 ${res.statusCode}`)); return }
+        resolve(JSON.parse(data).token)
+      })
+    })
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+function post(port, body, token) {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port, path: ENHANCE_PATH, method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-prompt-enhance-token': token || '' } }, (res) => {
+      let data = ''
+      res.on('data', (c) => { data += c })
+      res.on('end', () => resolve({ status: res.statusCode, body: data }))
+    })
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+const llmOk = () => ({
+  calls: [],
+  listProviders: () => [{ id: 'p1', name: 'P1' }],
+  listModels: async () => [{ id: 'm1', name: 'M1' }],
+  stream(options) {
+    this.calls.push(options)
+    return (async function* () {
+      yield { type: 'text-delta', text: '真实链路的增强结果' }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    })()
+  },
+})
+
+test('真机链路:健康请求必须拿到 200 与结果(不得被自己 abort)', async () => {
+  const llm = llmOk()
+  const out = await withRealServer(llm, ({ port, token }) => post(port, JSON.stringify({ text: '正常一次增强' }), token))
+  assert.equal(out.status, 200, `应 200,实际 ${out.status}:${out.body}`)
+  const payload = JSON.parse(out.body)
+  assert.equal(payload.ok, true)
+  assert.equal(payload.enhanced, '真实链路的增强结果')
+  assert.equal(llm.calls.length, 1, '模型应被真正调用一次')
+})
+
+test('真机链路:客户端中途断开 → 中止且不写响应(不挂住连接)', async () => {
+  let started
+  const startedPromise = new Promise((r) => { started = r })
+  const llm = llmOk()
+  llm.stream = function (options) {
+    this.calls.push(options)
+    started()
+    return (async function* () {
+      await new Promise((r) => setTimeout(r, 300)) // 慢到足以让我们中途断开
+      yield { type: 'text-delta', text: '太晚了' }
+      yield { type: 'finish', reason: { kind: 'stop' } }
+    })()
+  }
+  await withRealServer(llm, async ({ port, token }) => {
+    await new Promise((resolve, reject) => {
+      // 有界失败:若请求在闸门处被挡下,模型永不被调用,这里必须**报错**而不是
+      // 永久挂起(曾经的写法让整个测试文件静默卡死 8 秒,毫无线索)。
+      const timer = setTimeout(() => reject(new Error('模型始终未被调用:请求可能在闸门处被挡下(令牌缺失?)')), 3000)
+      const req = httpRequest({ host: '127.0.0.1', port, path: ENHANCE_PATH, method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-prompt-enhance-token': token } }, () => {})
+      req.on('error', () => {}) // ECONNRESET 预期
+      req.end(JSON.stringify({ text: '中途断开' }))
+      startedPromise.then(() => { clearTimeout(timer); req.destroy(); resolve() })
+    })
+    await new Promise((r) => setTimeout(r, 400))
+  })
+  // 服务端不应把结果写进一个已断开的连接 —— 且必须已中止(不再继续跑)
+  assert.equal(llm.calls.length, 1)
 })
