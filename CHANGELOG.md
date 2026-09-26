@@ -3,6 +3,36 @@
 本文件记录 dsh-prompt-enhance(提示词附魔棒)的版本变更。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.2] — 2026-09-25
+
+面向 **DSH 0.1.7-rc.2** 的 settings 契约适配。修复「增强模式在设置里完全不可见、不可改」的静默缺陷;纯兼容修复,增强管线行为不变。
+
+### 修复
+
+- **rc.2 改写了 settings 契约,旧注册路径静默失效(P0,全程零报错)**。0.1.7-rc.2 起框架不再提供 `ctx.settings.register(ns, schema, { base, validate })`,改为「设置表单以 **profile 条目 id** 标识插件,只投影该条目 Config 的 `.volatile()` 字段;写入经当前 profile 的 Cordis patch 持久化」(见 `@deepseek-ai/dsh-settings` README,框架自带的 `dsh-agent-default-model` 即此写法);客户端也不再提供 `settingsScope`,取而代之的是 `configForms.get(条目 id)`。旧代码的守门是 `typeof settingsService.register !== 'function'` 就静默 `return`,于是 `settings.registered` 与 `failed` 双双为 false:模式恒走 `generic` 兜底,设置栏目因 `settingsScope` 缺席从未挂载 —— 而这一切**没有任何日志或报错**,属本项目反复踩的「声明与现实脱节」同一类债。
+  - **宿主半**:导出 `Config = z.object({ mode: … .volatile() })`;模式改从 `apply(ctx, config)` 的**反应式 Config 引用**读取(改设置即刻生效,无需重载);`configure({ auto: false }, ctx.fiber)` 策略按 rc.2 惯用法注册(本插件自带设置栏目)。旧命名空间注册路径保留为兜底,两条路径互不干扰。
+  - **客户端半**:新增 `resolveSettingsScope()`,优先 `configForms.get('prompt-enhance')`,回退旧 `settingsScope.bind({ namespace })`。两者接口同形(`getSnapshot()` / `set(field, value)` / `subscribe()`),因此模式卡片 UI 无需改写。重试等待里也从 `ctx.inject(['slots','settingsScope'])` 收敛为 `['slots']` —— rc.2 没有 `settingsScope` 这个服务名,写进 inject 会永不回调。
+- **同源静默缺陷:插件配置项在 rc.2 下被整体忽略**。`diagFile` / `maxInputChars` / `maxOutputChars` / `historySanitize` / `temperature` / `debugTools` 原先用 `config?.x` 直读,而 rc.2 的 Config 是**反应式引用**(`{ get() }`),直读拿到的是引用对象 → 所有 `typeof`/`Number.isFinite` 判断恒假,选项全部回落到硬编码默认值。现统一走 `cfg(key, fallback)` 兼容引用与普通值两种形态。
+- **诊断工具如实报告新契约**:`prompt_enhance_diag` 的 `settings` 段新增 `configBound`(rc.2 的 Config 引用是否绑定)与 `policy`(`configure({auto:false})` 是否注册),`registered`/`failed` 保留但含义收窄为「旧契约命名空间」。
+
+### 测试与契约哨兵
+
+- **哨兵的 settings 断言同步到新契约**(否则它会永远报「漂移」):`check('2')` 由 `settings.register< / base? / validate?` 改为「`settings.configure(` 存在 + `register<` 不回归 + `schemastery` 有 `.volatile()`」;`check('6')` 由 `settingsScope` 改为 `configForms`(并加负向断言:旧的 `settingsScope` 不应再出现)。
+- **修正哨兵的两处假失败**:
+  - `check('7')` 原先只查 `ui-layout` / `ui-settings-plugins` 两个载体的客户端 JS —— 0.1.7-rc.2 起主题令牌定义在 **`dsh-client-ui-theme`**,于是「载体换了」被误报成「令牌没了」。现按三个载体依次探测。
+  - 顺带核实:rc.2 的令牌表里 **`--dsw-alias-label-error` 已被移除**,只剩 `--dsw-alias-state-error-primary/-secondary`;本插件 CSS 已是链式兜底,自动落到第二跳,行为不受影响,仅更正了那句「仍然有效」的过期注释。
+- **哨兵恢复可运行(此前已静默失效)**:终端版 DSH 卸载后,磁盘上不再有框架安装树,而 Electron 包内**不含任何 `.d.ts`**(哨兵按类型源码断言),于是 `npm test` 里的哨兵一直报「无法定位完整的 DSH 框架安装树」。现在可用 `DSH_FRAMEWORK_DIR` 指向一份**发布版镜像**运行:
+  ```bash
+  # 镜像已生成(20 个包, 6.1MB, 含 270 个 .d.ts),与桌面版同版本 0.1.7-rc.2
+  DSH_FRAMEWORK_DIR="$HOME/.dsh/framework-mirror-0.1.7-rc.2/node_modules/@deepseek-ai" npm test
+  ```
+  实测:**哨兵 8/8 通过**,插件自身测试除哨兵外全部通过。镜像需随桌面版升级重建(`npm pack` 同版本包后解包即可)。
+
+### 说明
+
+- `engines.dsh` 范围不变(`>=0.1.6-alpha.0 <0.2.0`):两条 settings 路径都在,旧框架行为与 0.7.1 一致。
+- 模式值在 rc.2 下落盘于**当前 profile 的 Cordis patch**(`profiles/<profile>/cordis.patch.yml` 中该条目的 `config.mode`),不再写 `settings.yaml`;旧文件 `settings.yaml.imported` 里的 `prompt-enhance:` 段落已不再生效,可留存作历史。
+
 ## [0.7.1] — 2026-09-19
 
 **严重缺陷修复:每次点击增强都会永久卡在「呼吸加载」,永不返回结果。** 纯 bugfix,无行为变更。

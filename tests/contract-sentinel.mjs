@@ -153,10 +153,14 @@ check('2', '宿主契约载具齐全(webServer/settings/tools/defineTool/llm/tim
   const web = readTypes('dsh-host-webserver/lib/types/index.d.ts')
   assert(web.includes('register(route'), 'webServer.register 不见了')
 
+  // v0.7.2:rc.2 重写了 settings 契约 —— 不再有 register(ns, schema, { base, validate }),
+  // 改为「设置表单投影 profile 条目 Config 的 .volatile() 字段;自带页面的插件注册
+  // configure({ auto: false }, fiber) 策略」。这里同时锚住两端:服务入口 + volatile API。
   const settings = readTypes('dsh-settings/lib/types/index.d.ts')
-  assert(settings.includes('register<'), 'settings.register 不见了')
-  assert(/base\?:/.test(settings), 'settings 的 base 选项改名了')
-  assert(/validate\?:/.test(settings), 'settings 的 validate 选项改名了')
+  assert(settings.includes('configure('), 'settings.configure 不见了(rc.2 的设置策略入口)')
+  assert(!/register</.test(settings), 'settings.register 又出现了 —— 新契约下应改用 volatile Config')
+  const schemastery = readFrameworkFile('schemastery/lib/index.mjs')
+  assert(schemastery.includes('prototype.volatile'), 'schemastery 的 .volatile() 不见了(volatile 字段无法声明)')
 
   const tools = readTypes('dsh-tools/lib/types/index.d.ts')
   assert(tools.includes('timeoutMs'), 'tools 的 timeoutMs 契约不见了')
@@ -241,25 +245,34 @@ check('6', '客户端挂载点仍在(slots 服务 + 两个槽位声明)', () => 
   const settingsGeneral = readFrameworkFile('dsh-client-ui-settings-general/lib/client.js')
   assert(settingsGeneral.includes('settings.section'), '槽位 settings.section 不见了(设置栏目无处挂载)')
   const settingsClient = readFrameworkFile('dsh-client-ui-settings/lib/client.js')
-  assert(settingsClient.includes('settingsScope'), 'settingsScope 服务不见了(设置卡片无法读写)')
-  return 'slots / conversation.input.right / settings.section / settingsScope 全部在位'
+  // v0.7.2:rc.2 起客户端设置读写入口由 settingsScope 换成 configForms
+  // (configForms.get(条目 id) → getSnapshot() / set(field, value) / subscribe())。
+  assert(settingsClient.includes('configForms'), 'configForms 服务不见了(设置卡片无法读写)')
+  assert(!settingsClient.includes('settingsScope'), 'settingsScope 又出现了 —— 新契约下应改用 configForms')
+  return 'slots / conversation.input.right / settings.section / configForms 全部在位'
 })
 
 // --- 7. 主题令牌与深色属性 -------------------------------------------------
-check('7', '主题令牌 --dsw-alias-state-error-primary 与 data-ds-dark-theme 仍有效', () => {
+check('7', '主题令牌(错误色)与 data-ds-dark-theme 仍有效', () => {
   const layout = readFrameworkFile('dsh-client-ui-layout/lib/client.js')
   assert(layout.includes('data-ds-dark-theme'), '深色主题属性 data-ds-dark-theme 不见了(19 处 CSS 会失效)')
-  // 错误色令牌:核实结论 —— label-error **仍然有效**,state-error-primary 是兜底链。
-  // 断言「至少一个仍被定义」,两者都消失才需要改代码。
+  // 错误色令牌:v0.7.2 核实 —— 0.1.7-rc.2 起令牌定义在 **dsh-client-ui-theme**,
+  // 且 `--dsw-alias-label-error` 已被移除,只剩 `--dsw-alias-state-error-primary/secondary`。
+  // 旧版哨兵只查 ui-layout / ui-settings-plugins,于是把「载体换了」误报成「令牌没了」。
+  // 这里按「至少一个可用令牌」断言,并优先认新令牌。
   let tokenFound = false
-  for (const p of ['dsh-client-ui-layout/lib/client.js', 'dsh-client-ui-settings-plugins/lib/client.js']) {
+  for (const p of [
+    'dsh-client-ui-theme/lib/client.js',
+    'dsh-client-ui-layout/lib/client.js',
+    'dsh-client-ui-settings-plugins/lib/client.js',
+  ]) {
     try {
       const src = readFrameworkFile(p)
-      if (src.includes('--dsw-alias-label-error') || src.includes('--dsw-alias-state-error-primary')) { tokenFound = true; break }
+      if (src.includes('--dsw-alias-state-error-primary') || src.includes('--dsw-alias-label-error')) { tokenFound = true; break }
     } catch (err) { /* 换下一个载体 */ }
   }
-  assert(tokenFound, '--dsw-alias-label-error 与 --dsw-alias-state-error-primary 在框架里都没有定义了 —— 错误色会只剩硬编码兜底')
-  return '深色属性 + 错误色令牌(首选 label-error,兜底 state-error-primary)均在位'
+  assert(tokenFound, '--dsw-alias-state-error-primary 与 --dsw-alias-label-error 在框架里都没有定义了 —— 错误色会只剩硬编码兜底')
+  return '深色属性 + 错误色令牌(state-error-primary 在位;label-error 已在 rc.2 移除)'
 })
 
 // --- 8. 版本声明与现实一致 -------------------------------------------------
