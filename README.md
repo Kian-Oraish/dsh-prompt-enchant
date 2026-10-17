@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" alt="dsh-prompt-enhance · 提示词附魔棒" width="88" height="88"></p>
+
 # dsh-prompt-enchant · 提示词附魔棒
 
 **🌐 Language | 语言:[English](./README.en.md) · 中文**
@@ -142,23 +144,29 @@ dsh-prompt-enchant/
 
 ## 兼容性与安全
 
-**框架契约**(已在 DSH **0.1.1-rc.2** 实测验证,含全部演示素材;并已按 **0.1.2-alpha.2 / alpha.5** 磁盘类型契约逐项核对):`conversation.input.right` 槽位注册(`id/order/label`,kind=list/scope=session)与 InputZone 标准 props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`;v0.3.0 起额外使用官方 `ctx.settings`(命名空间 `prompt-enhance`)与设置后台左侧一级栏目槽位 `settings.section`(order 19,与「提示词库」同款),均按 alpha.5 源码逐行核对。
+**框架契约**(已在 DSH **0.1.1-rc.2** 实测验证,含全部演示素材;并已按 **0.1.2-alpha.2 / alpha.5** 磁盘类型契约逐项核对):`conversation.input.right` 槽位注册(`id/order/label`,kind=list/scope=session)与 InputZone 标准 props;`defineTool` 属性映射参数;`dsh.client` 声明与 clientModules 预构建 bundle 格式;主题开关 `body[data-ds-dark-theme]`;v0.3.0 起额外使用官方 `ctx.settings`(命名空间 `prompt-enhance`)与设置后台左侧一级栏目槽位 `settings.section`(order 19,与「提示词库」同款),均按 alpha.5 源码逐行核对。**v0.7.5 起按 DSH 0.2.1-rc.2 实测**:该版本不再随包发 `.d.ts`,契约核验改读框架自己生成的机器可读目录(宿主 `dsh-tool-cordis/lib/types/api-catalog.js`、客户端 `dsh-cordis-client-runner/lib/client.js` 内嵌的 client inspect manifest),逐条见下方「v0.7.5 修复」。
 
 **版本兼容矩阵**:
 
 | DSH 版本 | 增强 | 多轮上下文 | @ 引用处理 | 设置后台(模式切换) |
 | --- | --- | --- | --- | --- |
+| 更早版本(无客户端槽位系统) | ⚠️ 按钮不渲染 | — | — | — |
 | 0.1.1-rc.2(已实测) | ✅ | ✅(`useSession` 快照) | ✅ 增强后引用逐字保留、chip 状态与发送序列化注入完整保留 | ❌ 无设置入口,恒用「通用」模式 |
 | 0.1.2-alpha.x(alpha.5 契约已核对) | ✅ | ⚠️ 降级为单轮(`useSession` 已移除,`useConversation` 不含消息历史) | ⚠️ 输入机改为 Lexical 编辑器,公开 API 无引用重插动词,`setDraft` 会把引用 chip 退化为文本提及(发送时不再注入文件内容)——因此**含 @ 引用的草稿在该版本下按钮禁用**(悬停可见说明),以保护引用完整性;无引用草稿正常增强 | ✅ 「设置」左侧一级栏目「提示词附魔棒」:单选模式、即选即存(当前仅「通用」;垂类模式后续随注册表扩充) |
 | **0.1.6-alpha.2(v0.7.0 实测)** | ✅ | ✅ **宿主侧派生历史**(`sessions.deriveMessages()`),感知 compaction | ✅ 含 @ 引用时**按钮禁用**(fail-closed);见下方「v0.7.0 修复」 | ✅ 同上,并补声明 `dsh-client-ui-settings` |
-| 更早版本(无客户端槽位系统) | ⚠️ 按钮不渲染 | — | — | — |
+| **0.2.1-rc.2(v0.7.5 实测)** | ✅ | ✅ **宿主侧派生历史**(`sessions.deriveMessages()`),感知 compaction | ✅ 含 @ 引用时**按钮禁用**(fail-closed);见下方「v0.7.0 修复」 | ✅ `configForms` + 反应式 volatile Config;插件兼容闸实测放行(`evaluatePluginCompatibility` 返回 `undefined`),见下方「v0.7.5 修复」 |
+
+**v0.7.5 修复(针对 0.2.1-rc.2 的插件兼容闸)**:
+
+1. **整个插件曾被新版本闸跳过(P0,功能整体消失)**:0.2.1 起 profile 启动/重组时读取插件包 manifest,按 `engines.dsh` 的 semver 区间判定(prerelease 参与),不满足的 **bundle 整包不加载**。旧区间 `>=0.1.6-alpha.0 <0.2.0` 被判 `incompatible-version`,`/prompt-enhance/api/modes` 直接 404。现 `engines.dsh = ">=0.2.1-rc.2 <0.3.0"`,三个 `@deepseek-ai/dsh-*` peer 区间同步;框架自带 `evaluatePluginCompatibility(pkg, {}, '0.2.1-rc.2')` 返回 `undefined`。
+2. **契约哨兵载体迁移(8 条断言一条未删)**:0.2.1 不再随包发 `.d.ts`(`lib/types/*.js` 变成运行时模块,纯类型文件只剩 `export {}`)。类型级契约改读框架自己生成的机器可读目录 —— 宿主侧 `dsh-tool-cordis/lib/types/api-catalog.js`(`SERVICE_API`/`TYPE_API`),客户端侧 `dsh-cordis-client-runner/lib/client.js`(client inspect manifest:`SERVICE_API`/`TYPE_API`/`CLIENT_SLOT_API`),断言仍落在声明层:webServer/settings/tools/timeout/crypto/session 签名、`GenerateOptions` 字段与 `purpose` 取值域、`SessionSnapshot` 仍无 `nodes`(ConversationSnapshot 无声明载体,改用其构造器形状 + 同版本 README 契约文字佐证,代码注释已注明)、`useTrajectory` 物化为 session 槽位 `standardProps` 条目、两个槽位声明与渲染、主题令牌、`engines` 区间(按兼容闸同语义 `includePrerelease` 求值)。哨兵自检:在可篡改的框架副本上分别改坏上述载体,对应断言逐一变红。
 
 **v0.7.0 修复(针对 0.1.6 的实测漂移)**:
 
 1. **引用保护闸门曾被静默关闭(重要)**:旧版用**版本嗅探**判断是否处于新框架——`newFramework = (typeof useSession !== 'function') && (typeof useConversation === 'function')`。0.1.6-alpha.2 **同时**提供这两个 hook,于是该值为 `false`,闸门**一直没生效**:含 @ 引用的草稿照样被送去增强。现改为**事实判定**(只看 occurrence 表里是否真有引用),不再嗅探版本。
 2. **多轮上下文曾静默降级为单轮**:旧版从客户端会话快照取历史,但 `SessionSnapshot` 与 `ConversationSnapshot` 都**没有** `nodes` 字段,三条取用分支全部落空、`extractHistory` 恒返回 `[]`。现改为**宿主侧**用 `ctx.get('sessions').get(sessionId).deriveMessages()`——那是框架自己喂给模型的**权威派生历史**(感知 compaction、已缓存、深冻结),客户端只需发送 `sessionId`。
 3. **`dsh.engines.dsh` 曾是幽灵字段**:它不在官方 `DshManifest` schema 上(正确位置是**顶层** `engines.dsh`),且框架内**没有任何 reader**。0.1.5 起就从未生效。现挪到顶层并加强断言。
-4. **semver 区间曾把当前框架排除在外**:`>=0.1.5-rc.2 <0.2.0` 因 npm 的 prerelease 规则**不匹配** `0.1.6-alpha.2`(也不匹配任何 0.1.6-alpha.x)。现为 `>=0.1.6-alpha.0 <0.2.0`。
+4. **semver 区间曾把当前框架排除在外**:`>=0.1.5-rc.2 <0.2.0` 因 npm 的 prerelease 规则**不匹配** `0.1.6-alpha.2`(也不匹配任何 0.1.6-alpha.x)。v0.7.0 起为 `>=0.1.6-alpha.0 <0.2.0`;**v0.7.5 起**再升到 `>=0.2.1-rc.2 <0.3.0`(0.2.1 的兼容闸会真的读它,见「已知风险」第 4 条)。
 5. **客户端死兜底**:`ctx.on('service', …)` 中的 `'service'` 事件在 cordis 4.x **不存在**(真实名 `internal/service`),该兜底从未生效;已换成 `ctx.inject(['slots','settingsScope'], …)`。
 
 `dsh.client.inject` 仅声明客户端模块图中实际存在的包(`locale`/`ui-conversation`;`dsh-client-runtime`、`dsh-client-ui-slots` 在新版本中已不存在,本包亦未引用,故不在注入清单);客户端 bundle 仅 `require('react')`,槽位服务经 `ctx.get('slots')` 获取。设置卡片经 `ctx.get('settingsScope')` 惰性挂载(不加入注入清单,旧框架/加载竞态下静默跳过,魔棒不受影响)。
@@ -208,6 +216,7 @@ API 路由经**两道**闸门,全部失败关闭(fail-closed):
 1. **`dsh-tools` 的 PTC 模式(未实测)**:0.1.6 新增 `mode: 'ptc' | 'both'`。类型注释明确:**PTC 模式下,模型直接发起的原生工具调用会被拒绝**(只有带 parent 的调用才允许执行原生工具名)。当前 profile 是默认 `native`,风险**惰性**;若将来启用 PTC,本插件的工具将只能经 `run_code` 抵达。**本插件未在 PTC 模式下实测过**。
 2. **`patchReload` 已空转**:`~/.dsh/profiles/web/package.json` 里的 `"patchReload": "live"` 在 0.1.6 已从 `DshProfileManifest` 类型中移除,且全树 grep 无 reader。**不要依赖 patch 热重载**——改完配置请重启守护。
 3. **框架无官方 CHANGELOG / 迁移说明**:本插件的兼容性结论全部来自对已安装框架源码的**逐字节 diff 与 grep**,不是官方发布说明。这也是为什么需要有下面的契约哨兵。
+4. **`engines.dsh` 现在会真的被读**:0.1.5–0.2.0 期间它是声明式字段(全树无 reader);**0.2.1 起**框架的插件兼容闸(`dsh-app-boot` 的 `evaluatePluginCompatibility`)在 profile 启动/重组时按 `engines.dsh` 做 semver 判定(prerelease 参与),不满足的 bundle **整包跳过**,只有 `plugin_manager.list_bundles` 的 `incompatible-version` 会提示。框架升级后先跑契约哨兵,再按新版本同步 `engines.dsh`(否则插件会静默消失)。另:0.2.1 不再随包发 `.d.ts`,哨兵的契约载体已迁到框架生成的机器可读目录(见下节)。
 
 ## 契约哨兵(框架漂移的自动报警器)
 
@@ -219,7 +228,9 @@ npm run sentinel  # 只跑哨兵
 PE_SKIP_SENTINEL=1 npm test   # 只验插件自身逻辑时跳过
 ```
 
-哨兵逐条断言(共 8 条):`connection.requestRejection` 仍在且 401/403 语义未变;8 个关键框架包与签名齐全;`GenerateOptions` 字段名与 `purpose` 取值域未变;两个会话快照仍**不含** `nodes`;`useTrajectory` 仍在但其窗口语义未被误用;`dsh.client.inject` 四项在框架树中可解析;`slots` 与两个槽位声明仍在;`data-ds-dark-theme` 与错误色令牌仍有效;顶层 `engines.dsh` 区间覆盖当前框架版本。
+哨兵逐条断言(共 8 条):`connection.requestRejection` 仍在且 401/403 语义未变;9 个关键框架包与签名齐全;`GenerateOptions` 字段名与 `purpose` 取值域未变;两个会话快照仍**不含** `nodes`;`useTrajectory` 仍在但其窗口语义未被误用;`dsh.client.inject` 四项在框架树中可解析;`slots` 与两个槽位声明仍在;`data-ds-dark-theme` 与错误色令牌仍有效;顶层 `engines.dsh` 区间覆盖当前框架版本(按 0.2.1 兼容闸同语义 `includePrerelease` 求值)。
+
+**0.2.1 起不再有 `.d.ts`**:断言载体迁到框架自己生成的机器可读目录 —— 宿主侧 `dsh-tool-cordis/lib/types/api-catalog.js` 的 `SERVICE_API`/`TYPE_API`,客户端侧 `dsh-cordis-client-runner/lib/client.js` 的 client inspect manifest(`SERVICE_API`/`TYPE_API`/`CLIENT_SLOT_API`);仅确实没有声明载体的契约(如 `ConversationSnapshot`)才退到运行时 bundle 形状或同版本 README 文字,并在代码注释里注明原因。
 
 **框架升级后跑一次即可**:失败即特征(契约漂移),不是噪音 —— 失败信息直接指向要改哪一处。若框架装在非默认位置,用 `DSH_FRAMEWORK_DIR` 指向 `…/node_modules/@deepseek-ai`。
 

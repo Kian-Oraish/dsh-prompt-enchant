@@ -3,6 +3,59 @@
 本文件记录 dsh-prompt-enhance(提示词附魔棒)的版本变更。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.5] — 2026-10-17
+
+面向 **DSH 0.2.1-rc.2** 的适配版本:恢复被新版本闸跳过的加载 + 契约哨兵载体迁移。增强管线行为不变。
+
+### 修复
+
+- **0.2.1 新增的插件兼容闸把整个插件跳过(P0,功能整体消失)**。0.2.1 起 profile 启动/重组时读取插件包 manifest:若声明 `engines.dsh` 则按该 semver 区间判定(prerelease 参与),不满足的 **bundle 整包不加载**。旧区间 `>=0.1.6-alpha.0 <0.2.0` 因此被判 `incompatible-version`(requirements `{"engines.dsh":">=0.1.6-alpha.0 <0.2.0"}`),`/prompt-enhance/api/modes` 直接 404。
+  - `version` 0.7.4 → 0.7.5;`engines.dsh` → `>=0.2.1-rc.2 <0.3.0`。
+  - `peerDependencies` 中 `@deepseek-ai/dsh-tools` / `@deepseek-ai/dsh-timeout` / `@deepseek-ai/dsh-util-crypto` 的旧 `<0.2.0` 区间同步改为 `>=0.2.1-rc.2 <0.3.0`(`schemastery` 区间不变,`devDependencies` 不动)。
+  - **验收**:框架自带 `evaluatePluginCompatibility(pkg, {}, '0.2.1-rc.2')`(实现在 `dsh-app-boot`,`semver.satisfies(runtime, range, { includePrerelease: true })`)返回 `undefined`。
+
+### 契约哨兵:0.2.1 不再随包发 .d.ts,断言载体迁移(8 条断言一条未删)
+
+0.2.1 的每个包只有 `lib/index.js`(宿主)/ `lib/client.js`(客户端),`lib/types/*.js` 变成运行时模块(纯类型文件只剩 `export {}`)—— 旧哨兵读 `.d.ts` 的第 1/2/3/4/6 条全部报「文件不存在」。0.2.1 把类型级契约放进框架自己生成的**机器可读目录**(以字符串字面量保存 TS 声明,是运行时会真正用到的数据),哨兵改读这些载体,断言仍落在声明层(未改成「出现过某个词」的弱断言):
+
+- **宿主侧**:`dsh-tool-cordis/lib/types/api-catalog.js` 的 `SERVICE_API` / `TYPE_API`(cordis_inspect 的服务与类型目录,由 `scripts/gen-cordis-api.ts` 从源码 AST 生成);
+- **客户端侧**:`dsh-cordis-client-runner/lib/client.js` 内嵌的 client inspect manifest(`SERVICE_API` / `TYPE_API` / `CLIENT_SLOT_API`)。
+
+逐条迁移与 0.2.1 实测契约漂移点:
+
+- **[1]** `connection.requestRejection(request: ConnectionTrustRequest): ConnectionRequestRejection` 签名与 `ConnectionRequestRejection = 401 | 403 | undefined` 改由 api-catalog 断言;实现里 401/403 两条拒绝分支仍在(`dsh-client-connection/lib/index.js`)。
+- **[2]** webServer `register(route: WebRoute)`;settings `configure(presentation, owner = this.ctx.fiber)` 且旧 `register(ns, …)` 未回归(声明与实现双向断言);schemastery `Schema.prototype.volatile`;tools 的 `timeoutMs` 在 `ToolDefinition`、`signal` 在 `ToolExecutionInput`(0.2.1 的拆分,经 `ToolExecution` 继承给 `ToolRunContext`),并保留实现级「timeoutMs 正数校验 / exec.signal 透传」断言;`deadline()` + `[Symbol.dispose]`;`randomUUID()`;`Session.deriveMessages(): Message[]` 与 `sessions.get(id: SessionId)`(旧 .d.ts 里的 `SessionStore.get`)。
+- **[3]** `GenerateOptions` 字段名未变,`purpose` 取值域仍为且仅为 `'compaction' | 'session-title'`。
+- **[4]** `SessionSnapshot` 声明**仍无 `nodes`**(反向断言保持)。`ConversationSnapshot` 在 0.2.1 客户端类型注册表里没有声明,改用其构造器 `currentSnapshot()` 的返回形状(`{ views, activeTargets }`) + 同版本 `README.zh.md` 的契约文字佐证(代码注释已注明原因)。旧的 `declare module '@deepseek-ai/dsh-client-ui-slots'` 类型增强被擦除,`useTrajectory` 在 client manifest 里物化为每个 session 槽位 `standardProps` 的 `"useTrajectory: UseTrajectory"`。
+- **[6]** 槽位契约改读 `CLIENT_SLOT_API`(`conversation.input.right` = list/session;`settings.section` = list/root),并交叉断言两个客户端 bundle 仍在 `renderSlot(...)` 实际渲染;`slots` 服务仍由 `ui-renderer` 提供;客户端 `configForms` 服务仍在、`settingsScope` 未回归。
+- **[8]** engines 断言保留;区间求值改为与 0.2.1 兼容闸**同语义**(`includePrerelease: true`),否则 `0.2.1-rc.2` 这类 prerelease 运行时会像 0.1.6 那样被区间误判。
+
+### 测试
+
+- `node --test tests/*.test.mjs`:**81/81**(改前 80/81);`node tests/contract-sentinel.mjs`:**8/8**(改前 2/8)。
+- 哨兵自检(非恒真验证):在可篡改的框架副本上分别改坏 `GenerateOptions.purpose` 取值域、给 `SessionSnapshot` 加 `nodes`、改坏 `settings.configure` 签名、回退 `engines.dsh` 区间 —— 对应第 3/4/2/8 条断言分别变红,其余仍绿。
+
+## [0.7.4] — 2026-09-30
+
+修复设置导航星标在热重载后被**撑成 128px、把整栏顶出可视区**的缺陷(用户截图报障)。
+
+### 修复
+
+- **星标尺寸不再依赖样式表(P0,视觉级)**。`buildNavSvg()` 原先只给 `viewBox 0 0 1024 1024` + `class="pwe-nav-star"`,16px 完全由 CSS 那条 `.pwe-nav-star { width:16px; height:16px }` 提供,svg 自身没有 `width`/`height` 属性。
+  - **触发链**:编辑 `lib/client.js` → 客户端 HMR 卸载旧模块 → 卸载钩子 `ctx.effect` 移除它注入的 `<style>`(CSS 规则随之消失)→ 而**已经换进导航的那个 svg 没人回收**,新模块的 `apply()` 又在 `ctx.get('slots') === undefined` 时直接 `return`(样式可能压根没重新注入)→ 星标失去唯一尺寸来源,按 viewBox 比例撑满 flex 容器。
+  - **实测复现**:在真实页面里删掉那一条 CSS 规则,星标从 `16×16` 变成 `128×128`,与用户截图一致;加上 `width`/`height` 属性后同一实验仍是 `16×16`。
+  - **改法**:`buildNavSvg()` 直接设 `width="16" height="16"`(框架自带 `navIcon` 也是这个写法),尺寸不再依赖任何样式表,样式只负责观感。
+- **坏星标自愈**:`swapOnce()` 原先只要 `classList` 含 `pwe-nav-star` 就跳过。旧版本留下的无尺寸星标因此永远等不到替换,必须手动刷新页面。现在把「缺 `width`/`height`」也视为待修状态,设置面板下次打开即自动换成新标。
+
+## [0.7.3] — 2026-09-30
+
+纯文案变更:设置页签名与页内标题改名,行为与增强管线不变。
+
+### 变更
+
+- **设置页签名「提示词附魔棒」→「提示词增强」**,页内标题同步改为「提示词增强 · 人设模式」。原因是页签名是设置导航里唯一的自造词,可读性差;改后与输入框按钮「增强提示词」用同一套措辞。
+  - **同源必须同步的一处**:`mountSettingsNavIcon()` 里的 `SETTINGS_LABEL` 按页签文字做 `textContent` 精确匹配来替换导航图标。页签名一改,若常量不同步,星形图标会**静默失效**(纯装饰,无报错)。本次已同步,并在两处各留注释互指。
+
 ## [0.7.2] — 2026-09-25
 
 面向 **DSH 0.1.7-rc.2** 的 settings 契约适配。修复「增强模式在设置里完全不可见、不可改」的静默缺陷;纯兼容修复,增强管线行为不变。

@@ -1,6 +1,7 @@
 {
   "name": "dsh-prompt-enhance",
-  "version": "0.7.2",
+  "version": "0.7.5",
+  "icon": "./icon.svg",
   "description": "提示词附魔棒 (dsh-prompt-enchant):DSH Web 对话输入框的灵活自适应提示词增强插件(磁盘常驻版,重启自动加载;支持人设模式切换)",
   "type": "module",
   "main": "lib/index.js",
@@ -20,7 +21,7 @@
   },
   "engines": {
     "node": ">=20",
-    "dsh": ">=0.1.6-alpha.0 <0.2.0"
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
   },
   "dsh": {
     "manifestVersion": 1,
@@ -38,9 +39,9 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": ">=0.1.6-alpha.0 <0.2.0",
-    "@deepseek-ai/dsh-timeout": ">=0.1.6-alpha.0 <0.2.0",
-    "@deepseek-ai/dsh-util-crypto": ">=0.1.6-alpha.0 <0.2.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-timeout": ">=0.2.1-rc.2 <0.3.0",
+    "@deepseek-ai/dsh-util-crypto": ">=0.2.1-rc.2 <0.3.0",
     "@deepseek-ai/schemastery": ">=3.18.0"
   },
   "devDependencies": {
@@ -61,6 +62,7 @@
     "url": "https://github.com/Kian-Oraish/dsh-prompt-enchant.git"
   },
   "files": [
+    "icon.svg",
     "lib/index.js",
     "lib/client.js",
     "lib/modes.js",
@@ -70,6 +72,7 @@
     "cordis.patch.yml",
     "config/",
     "assets/icons/",
+    "assets/logo.svg",
     "README.md",
     "README.en.md",
     "CHANGELOG.md",

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36" role="img" aria-label="dsh-prompt-enhance · 魔棒与闪光星">
+  <title>dsh-prompt-enhance · 提示词附魔棒（插件图标）</title>
+  <desc>魔棒＝“附魔”（把粗糙输入变精准），握把深色／杖身浅色两段＝“改写”这件事本身；杖尖的大四角星＝增强结果，两颗小星＝过程中的火花。与插件自身的品牌记号（四角闪光星）同源。</desc>
+  <!-- dsh-prompt-enhance | 提示词附魔棒 | 口语化的输入 → 附魔成精准提示词 -->
+  <!-- DSH 插件 manifest 图标：36×36 透明底（官方 bundle 同规格），由 package.json 顶层 icon 字段指向 -->
+  <g transform="scale(0.5625)"><rect x="29.5" y="19" width="5" height="30" rx="2.5" fill="#5686FE" transform="rotate(45 32 34)"/><rect x="33.4" y="20.6" width="5" height="19" rx="2.5" fill="#7AAAFF" transform="rotate(45 35.9 30.1)"/><path d="M45 8L47.2 16.8L56 19L47.2 21.2L45 30L42.8 21.2L34 19L42.8 16.8Z" fill="#45D9E7"/><path d="M45 14.4L46.1 17.9L49.6 19L46.1 20.1L45 23.6L43.9 20.1L40.4 19L43.9 17.9Z" fill="#FFFFFF" fill-opacity="0.92"/><path d="M16.5 14.8L17.74 19.76L22.7 21L17.74 22.24L16.5 27.2L15.26 22.24L10.3 21L15.26 19.76Z" fill="#7AAAFF"/><path d="M50.5 38.9L51.51 42.49L55.1 43.5L51.51 44.51L50.5 48.1L49.49 44.51L45.9 43.5L49.49 42.49Z" fill="#5686FE" fill-opacity="0.92"/></g>
+</svg>
