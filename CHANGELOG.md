@@ -3,6 +3,24 @@
 本文件记录 dsh-prompt-enhance(提示词附魔棒)的版本变更。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.6] — 2026-11-16
+
+面向 **DSH 0.2.2-rc.3** 的复验版本:增强管线行为不变,修的是**契约哨兵对压缩客户端 bundle 的假失败**。
+
+### 修复
+
+- **哨兵在 0.2.2-rc.2+ 上把「契约没变」误报成「契约漂移」(P1,测试级)**。0.2.2-rc.2 起框架的客户端 bundle 改用新的压缩产物:字符串字面量从 `"…"` 变成 `` `…` ``、`return {` 变成 `return{`。旧哨兵把引号与空白写死,于是:
+  - 第 4 条:`findTypeDeclaration(..., 'SessionSnapshot', '"')` 找不到 `name: \`SessionSnapshot\`` → 误报「找不到声明」;`currentSnapshot() { return {...} }` 的正则也因 `return{` 失配。
+  - 第 6 条:`renderer.includes('super(ctx, "slots")')` 与 `signature: "…"` 等文本断言全部失配 → 误报「ui-renderer 不再提供 slots 服务」。
+  - **实测两项契约其实都在**:`SessionSnapshot` 声明无 `nodes`;`slots` 服务签名 `declare readonly register: SlotCore['register']` 未变;`conversation.input.right` 仍是 list/session、`settings.section` 仍是 list/root;`configForms` 仍在 `dsh-client-ui-settings`。
+  - **改法**:客户端 manifest 改为**结构化读取**(按 `const XXX_API=[…]` 括号配对求值 `TYPE_API`/`SERVICE_API`/`CLIENT_SLOT_API`),文本断言一律改成**引号无关**的正则(接受 `"` `'` `` ` ``);宿主 api-catalog 的读法不变(仍格式化)。断言一条未删、未削弱,只是不再依赖压缩器的排版。
+- 版本 `0.7.5 → 0.7.6`;`engines.dsh` 不变(`>=0.2.1-rc.2 <0.3.0`,覆盖 0.2.2-rc.3)。
+
+### 测试
+
+- DSH **0.2.2-rc.3**(桌面版 0.2.2-rc.3、Node 24.21)实测:`node --test tests/*.test.mjs` **81/81**;`node tests/contract-sentinel.mjs` **8/8**(改前 6/8,两条即上述压缩产物假失败)。
+- 工作区级体检 `03_工具与工作流/plugin-compat-check/check-plugin-compat.mjs`:3 个自研插件 30/30 通过。
+
 ## [0.7.5] — 2026-10-17
 
 面向 **DSH 0.2.1-rc.2** 的适配版本:恢复被新版本闸跳过的加载 + 契约哨兵载体迁移。增强管线行为不变。

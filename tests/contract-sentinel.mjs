@@ -1,5 +1,5 @@
 // ============================================================================
-// 框架契约哨兵(Contract Sentinel) · dsh-prompt-enhance v0.7.5
+// 框架契约哨兵(Contract Sentinel) · dsh-prompt-enhance v0.7.6
 // ----------------------------------------------------------------------------
 // 为什么需要它:升级暴露的真正问题**不是**「框架改了一个 API」,而是
 // 「框架改了,而没有任何东西会告诉你」——
@@ -26,6 +26,14 @@
 //     两者就是 .d.ts 在 0.2.1 的等价载体,断言仍落在声明层(不是弱化成「出现过
 //     某个词」)。只有确实没有声明载体的契约(如 ConversationSnapshot)才退到
 //     运行时 bundle 的形状或同版本 README 的文字,并在注释里注明原因。
+//
+// 0.2.2-rc.2 起的载体形态变化(本文件 v0.7.6 的改动):
+//   · 客户端 manifest 随 bundle 一起被压缩:字符串分隔符从 `"` 变成反引号,
+//     空白被去掉(`return {` → `return{`),`const XXX_API=[…]` 也不再换行。
+//   · 因此客户端侧改用**结构化读取**(按 `[` `]` 配对求值 TYPE_API / SERVICE_API /
+//     CLIENT_SLOT_API)与**引号无关**的文本正则;不能再用 `name: "X"`、
+//     `super(ctx, "slots")` 这类写死引号的断言 —— 那会把「契约仍在」误报成漂移。
+//   · 宿主 api-catalog 仍是格式化输出(单引号),读法不变。
 //
 // 用法:
 //   node tests/contract-sentinel.mjs        # 独立运行
@@ -186,40 +194,67 @@ function rawQuotedAt(source, start, quote) {
   return null
 }
 
-/**
- * 从生成式注册表里取一条类型声明。条目形如:
- *   { name: 'X',\n        declaration: 'export interface X {...}' }
- * quote 是字面量引号:宿主 api-catalog 用单引号,客户端 manifest 用双引号。
- * 找不到返回 null(调用方据此表达「这个类型的载体没了」)。
- */
-function findTypeDeclaration(source, name, quote) {
-  const marker = `name: ${quote}${name}${quote}`
-  let from = 0
-  for (;;) {
-    const at = source.indexOf(marker, from)
-    if (at < 0) return null
-    const after = source.indexOf(`declaration: ${quote}`, at + marker.length)
-    // name 与 declaration 必须同属一个条目对象(中间只有逗号与空白)。
-    if (after >= 0 && /^,\s*$/.test(source.slice(at + marker.length, after))) {
-      const raw = rawQuotedAt(source, after + 'declaration: '.length, quote)
-      if (raw !== null) return unescapeJsString(raw)
-    }
-    from = at + marker.length
-  }
+/** 正则转义(服务/槽位 key 里有点号)。 */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
- * 从生成式注册表里取一个「key: 'X'」条目块(截到下一个同级条目为止),
+ * 从生成式注册表里取一条类型声明。条目形如:
+ *   { name: 'X', declaration: 'export interface X {...}' }
+ * 引号不再写死:宿主 api-catalog 是格式化后的单引号,客户端 manifest 是压缩后的
+ * 反引号(0.2.2-rc.2 起 esbuild 对无插值的模板字符串改用反引号)——只认一种引号
+ * 会让哨兵在「契约仍在」时误报(2026-11-16 两处假失败即此因)。
+ * 找不到返回 null(调用方据此表达「这个类型的载体没了」)。
+ */
+function findTypeDeclaration(source, name) {
+  const marker = new RegExp(`name:\\s*(["'\`])${escapeRegExp(name)}\\1`, 'g')
+  let match
+  while ((match = marker.exec(source)) !== null) {
+    const afterName = match.index + match[0].length
+    const declStart = /declaration:\s*(["'`])/g
+    declStart.lastIndex = afterName
+    const decl = declStart.exec(source)
+    if (decl === null) return null
+    // name 与 declaration 必须同属一个条目对象(中间只有逗号与空白)。
+    if (!/^,\s*$/.test(source.slice(afterName, decl.index))) continue
+    const raw = rawQuotedAt(source, decl.index + decl[0].length - 1, decl[1])
+    if (raw !== null) return unescapeJsString(raw)
+  }
+  return null
+}
+
+/**
+ * 从生成式注册表里取一个「key: 'X'」条目对象块(按花括号配对截取),
  * 用于在**指定服务/槽位**的方法与字段里断言契约,而不是在全文件里碰运气。
+ * 引号同样不写死;压缩后的 manifest 没有换行,所以不能再用「下一个 key」当边界。
  * 找不到返回 null。
  */
-function findKeyBlock(source, key, quote) {
-  const marker = `key: ${quote}${key}${quote}`
-  const at = source.indexOf(marker)
-  if (at < 0) return null
-  const rest = source.slice(at + marker.length)
-  const boundary = /\n[ \t]*\{[ \t]*\n[ \t]*key:/.exec(rest)
-  return boundary === null ? rest : rest.slice(0, boundary.index)
+function findKeyBlock(source, key) {
+  const marker = new RegExp(`key:\\s*(["'\`])${escapeRegExp(key)}\\1`, 'g')
+  const match = marker.exec(source)
+  if (match === null) return null
+  const open = source.lastIndexOf('{', match.index)
+  if (open < 0) return null
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let i = open; i < source.length; i += 1) {
+    const ch = source[i]
+    if (quote !== null) {
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
+    if (ch === '{') depth += 1
+    else if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(open, i + 1)
+    }
+  }
+  return null
 }
 
 /** 宿主 API 目录(0.2.1 的 .d.ts 等价载体;懒读一次,663KB)。 */
@@ -233,6 +268,52 @@ let clientManifestCache = null
 function clientInspectManifest() {
   if (clientManifestCache === null) clientManifestCache = readFrameworkFile('dsh-cordis-client-runner/lib/client.js')
   return clientManifestCache
+}
+
+/**
+ * 从压缩后的客户端 bundle 里按名取出一个 `const XXX_API=[...]` 字面量数组。
+ * 生成器保证这些数组是纯字面量(name/declaration/signature/kind/scope 全是字符串),
+ * 所以按括号配对截取后求值即可拿到结构化目录 —— 比在压缩代码上做引号文本匹配稳,
+ * 也避免了下一次压缩器换引号/换空白再把哨兵打红。
+ */
+function extractLiteralArray(source, name) {
+  const marker = `const ${name}=[`
+  const at = source.indexOf(marker)
+  assert(at >= 0, `客户端 manifest 里找不到 ${name}(生成器改了数组名?)`)
+  const start = at + marker.length - 1
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let i = start; i < source.length; i += 1) {
+    const ch = source[i]
+    if (quote !== null) {
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue }
+    if (ch === '[') depth += 1
+    else if (ch === ']') {
+      depth -= 1
+      if (depth === 0) return (0, eval)(source.slice(start, i + 1))
+    }
+  }
+  throw new Error(`客户端 manifest 的 ${name} 没有闭合(生成器输出被截断?)`)
+}
+
+/** 客户端契约目录的结构化视图(TYPE_API / SERVICE_API / CLIENT_SLOT_API)。 */
+let clientManifestDataCache = null
+function clientManifestData() {
+  if (clientManifestDataCache === null) {
+    const source = clientInspectManifest()
+    clientManifestDataCache = {
+      typeApi: extractLiteralArray(source, 'TYPE_API'),
+      serviceApi: extractLiteralArray(source, 'SERVICE_API'),
+      slotApi: extractLiteralArray(source, 'CLIENT_SLOT_API'),
+    }
+  }
+  return clientManifestDataCache
 }
 
 // ===========================================================================
@@ -276,8 +357,10 @@ check('2', '宿主契约载具齐全(webServer/settings/tools/defineTool/llm/tim
 
   const webService = findKeyBlock(catalog, 'webServer', "'")
   assert(webService !== null, '宿主 API 目录里找不到 webServer 服务')
-  assert(webService.includes("signature: 'register(route: WebRoute): () => void'"),
-    'webServer.register(route) 不见了或签名变了(0.2.1: SERVICE_API.webServer)')
+  // 0.2.2 起签名扩宽为 `register(route: WebRoute | WebResourceRoute)` —— 向后兼容:
+  // 本插件只传 WebRoute,返回值仍是 disposer 函数。
+  assert(webService.includes("signature: 'register(route: WebRoute | WebResourceRoute): () => void'"),
+    'webServer.register(route) 不见了或签名变了(0.2.2: SERVICE_API.webServer)')
   const webImpl = readFlat('dsh-host-webserver/lib/index.js')
   assert(/register\(route\)\s*\{/.test(webImpl), 'webServer 实现里找不到 register(route)')
 
@@ -305,11 +388,18 @@ check('2', '宿主契约载具齐全(webServer/settings/tools/defineTool/llm/tim
   assert(toolExecutionInput !== null, '找不到 ToolExecutionInput 类型声明(0.2.1 新增的 signal 载体)')
   assert(toolExecutionInput.includes('readonly signal: AbortSignal'), 'ToolExecutionInput 的 signal 不见了(ToolRunContext 经 ToolExecution 继承它)')
   const toolsService = findKeyBlock(catalog, 'tools', "'")
-  assert(toolsService !== null && toolsService.includes("signature: 'register(definition: ToolDefinition): () => void'"),
+  // 0.2.2 起多了可选的第二参 `options: ToolRegistrationOptions = {}`(按步骤条件启用);
+  // 本插件只传 definition,单参调用依旧合法。
+  assert(toolsService !== null && toolsService.includes("signature: 'register(definition: ToolDefinition, options: ToolRegistrationOptions = {}): () => void'"),
     'tools.register(definition: ToolDefinition) 不见了(defineTool 的落点)')
-  const toolsImpl = readFlat('dsh-tools/lib/types/index.js')
+  // 0.2.2:工具执行管线拆到 `dsh-tools/lib/pipeline.js`,timeoutMs 校验移到
+  // defineTool(`dsh-tools/lib/index.js`);ToolRunContext 的 signal 改为
+  // 「调用方信号 + wrapper 信号」融合后写回 exec,再交给 tool.execute(exec.arguments, exec)。
+  const toolsImpl = readFlat('dsh-tools/lib/index.js')
   assert(/timeoutMs must be a positive finite number/.test(toolsImpl), 'dsh-tools 不再校验 timeoutMs(契约失去运行时强制)')
-  assert(/const signal = exec\.signal/.test(toolsImpl), 'ToolRunContext.signal 未再透传进工具执行(实现里找不到 exec.signal)')
+  const toolPipeline = readFlat('dsh-tools/lib/pipeline.js')
+  assert(/fuseToolSignals\(/.test(toolPipeline), 'ToolRunContext.signal 未再融合调用方信号(实现里找不到 fuseToolSignals)')
+  assert(/tool\.execute\(exec\.arguments, exec\)/.test(toolPipeline), '工具执行不再收到携带 signal 的 exec')
 
   // deadline 是超时的统一正解,且必须有 Symbol.dispose(0.2.1 仍随包发实现,无 .d.ts)
   const timeoutImpl = readFrameworkFile('dsh-timeout/lib/index.js')
@@ -334,21 +424,26 @@ check('2', '宿主契约载具齐全(webServer/settings/tools/defineTool/llm/tim
 // --- 3. LLM 词汇表:字段名与取值域 -----------------------------------------
 // 0.2.1 载体:宿主 API 目录 TYPE_API 的 GenerateOptions 声明(类型擦除后的
 // 真身;dsh-llm/lib/types/types.js 已不含该声明)。
-check('3', 'llm GenerateOptions 字段名与 purpose 取值域未变', () => {
+check('3', 'llm GenerateOptions 字段名与 purpose 语义未变', () => {
   const dts = findTypeDeclaration(hostApiCatalog(), 'GenerateOptions', "'")
   assert(dts !== null, '找不到 GenerateOptions 声明(0.2.1: api-catalog.js TYPE_API)')
   for (const field of ['maxTokens', 'signal', 'purpose', 'reasoningEffort', 'temperature', 'system']) {
     assert(new RegExp(`\\b${field}\\??:`).test(dts), `GenerateOptions 里找不到 ${field}`)
   }
   assert(!dts.includes('maxOutputTokens'), 'GenerateOptions 出现了 maxOutputTokens —— 是否已改名?')
-  // purpose 只有两个合法值;多一个即需要重新评估副作用
+  // 0.2.2:GenerateOptions 的 purpose 改为泛型 `purpose?: Purpose`
+  // (LlmRequestPurposeMap 由各包声明合并,类型目录里不再内联字面量)。
+  // 插件只依赖 `session-title`(空正文重试时关闭思维链),所以改断言
+  // 「框架自身仍以这两个 purpose 调模型」——比盯类型字面量更贴近真实语义。
   const purposeLine = dts.match(/purpose\?:[^;]*;/)
   assert(purposeLine !== null, '找不到 purpose 声明')
-  const allowed = ['compaction', 'session-title']
-  for (const v of allowed) assert(purposeLine[0].includes(v), `purpose 不再包含 ${v}`)
-  const quoted = purposeLine[0].match(/'([a-z-]+)'/g) || []
-  assert(quoted.length === allowed.length, `purpose 取值域变了(现在是 ${quoted.join(',')})—— 插件的空正文重试依赖 session-title 的关思维链副作用`)
-  return `purpose = ${quoted.join(' | ')}`
+  const sessionTitle = readFrameworkFile('dsh-session-title-llm/lib/index.js')
+  assert(/purpose:\s*["']session-title["']/.test(sessionTitle),
+    '框架自身不再以 purpose "session-title" 调模型 —— 插件的空正文重试会退化为带思维链的重试')
+  const compaction = readFrameworkFile('dsh-compaction-basic/lib/index.js')
+  assert(/purpose:\s*["']compaction["']/.test(compaction),
+    '框架自身不再以 purpose "compaction" 调模型 —— 检查压缩语义是否改名')
+  return 'purpose 泛型声明在位;框架实现仍使用 session-title / compaction'
 })
 
 // --- 4. 反向断言:客户端快照没有 nodes -------------------------------------
@@ -368,14 +463,15 @@ check('3', 'llm GenerateOptions 字段名与 purpose 取值域未变', () => {
 //     为每个 session 槽位的 standardProps 条目 —— 对插件要挂的
 //     conversation.input.right 槽位断言即可。
 check('4', '【反向断言】会话/对话快照不含 nodes(客户端历史链必须保持删除)', () => {
-  const clientManifest = clientInspectManifest()
-  const sessionSnap = findTypeDeclaration(clientManifest, 'SessionSnapshot', '"')
-  assert(sessionSnap !== null, '找不到 SessionSnapshot 声明(0.2.1: client inspect manifest TYPE_API)')
+  const manifest = clientManifestData()
+  const sessionSnap = manifest.typeApi.find((entry) => entry.name === 'SessionSnapshot')?.declaration ?? null
+  assert(sessionSnap !== null, '找不到 SessionSnapshot 声明(客户端 inspect manifest TYPE_API)')
   assert(!/\bnodes\b/.test(sessionSnap), 'SessionSnapshot 现在有 nodes 了 —— 可重新评估客户端取历史(但请优先用 host 派生)')
 
   // ConversationSnapshot:声明载体已消失(见上),用构造器形状 + README 契约文字佐证。
+  // 客户端 bundle 已压缩(return{...}),空白不能写死。
   const convClient = readFrameworkFile('dsh-client-ui-conversation/lib/client.js')
-  const builder = /currentSnapshot\(\)\s*\{\s*return \{([^}]*)\};/.exec(convClient)
+  const builder = /currentSnapshot\(\)\s*\{\s*return\s*\{([^}]*)\}/.exec(convClient)
   assert(builder !== null, 'ConversationSnapshot 的构造器 currentSnapshot() 不见了(客户端契约载体变化)')
   assert(!/\bnodes\b/.test(builder[1]), 'ConversationSnapshot 现在有 nodes 了 —— 同上,请优先用 host 派生')
   assert(/\bviews:/.test(builder[1]) && /\bactiveTargets:/.test(builder[1]),
@@ -388,9 +484,9 @@ check('4', '【反向断言】会话/对话快照不含 nodes(客户端历史链
 
   // 备查:useTrajectory **确实存在**(曾被误判为不存在)。断言它仍在,并断言
   // 它仍然是「事件窗口」而不是权威派生历史 —— 后者才是我们选 host 侧的理由。
-  const rightSlot = findKeyBlock(clientManifest, 'conversation.input.right', '"')
+  const rightSlot = manifest.slotApi.find((entry) => entry.key === 'conversation.input.right') ?? null
   assert(rightSlot !== null, '客户端槽位目录里找不到 conversation.input.right')
-  assert(rightSlot.includes('"useTrajectory: UseTrajectory"'),
+  assert((rightSlot.standardProps ?? []).includes('useTrajectory: UseTrajectory'),
     'useTrajectory 不再出现在 session 槽位的 standardProps 里(旧的 declare module 增强关系断了)')
   const traj = readFrameworkFile('dsh-client-ui-trajectory/lib/client.js')
   assert(traj.includes('eventNodes'), 'TrajectorySnapshot.eventNodes 不见了')
@@ -419,35 +515,39 @@ check('5', 'dsh.client.inject 各项在框架树中可解析(客户端半的挂�
 // 0.2.1 载体:slots.d.ts 已不存在。槽位契约改读客户端 inspect manifest 的
 // CLIENT_SLOT_API(每个槽位的 kind/scope/standardProps 声明),再用**实际渲染
 // 该槽位的包**做交叉验证 —— 声明与运行时两边都锚住。
+// 0.2.2-rc.2 起客户端包被压缩且字符串改用反引号,因此 manifest 走结构化读取,
+// 运行时断言用「引号无关」的正则(否则契约没变、哨兵先红)。
 check('6', '客户端挂载点仍在(slots 服务 + 两个槽位声明)', () => {
   const renderer = readFrameworkFile('dsh-client-ui-renderer/lib/client.js')
-  assert(renderer.includes('super(ctx, "slots")'), 'ui-renderer 不再提供 slots 服务')
-  const clientManifest = clientInspectManifest()
-  const slotsService = findKeyBlock(clientManifest, 'slots', '"')
-  assert(slotsService !== null, '客户端服务目录里找不到 slots 服务(0.2.1: client inspect manifest SERVICE_API)')
-  assert(slotsService.includes('signature: "declare readonly register: SlotCore[\'register\']"'),
-    'slots.register 的签名契约变了(0.2.1: SERVICE_API.slots)')
+  assert(/super\(ctx,\s*["'`]slots["'`]\)/.test(renderer), 'ui-renderer 不再提供 slots 服务')
+  const manifest = clientManifestData()
+  const slotsService = manifest.serviceApi.find((entry) => entry.key === 'slots') ?? null
+  assert(slotsService !== null, '客户端服务目录里找不到 slots 服务(客户端 inspect manifest SERVICE_API)')
+  assert((slotsService.methods ?? []).some((method) => method.signature.includes("register: SlotCore['register']")),
+    'slots.register 的签名契约变了(SERVICE_API.slots)')
 
   // 槽位 conversation.input.right:声明(kind=list/scope=session)+ 实际渲染
-  const rightSlot = findKeyBlock(clientManifest, 'conversation.input.right', '"')
+  const rightSlot = manifest.slotApi.find((entry) => entry.key === 'conversation.input.right') ?? null
   assert(rightSlot !== null, '槽位 conversation.input.right 不见了(魔棒无处挂载)')
-  assert(rightSlot.includes('kind: "list"') && rightSlot.includes('scope: "session"'),
-    'conversation.input.right 的 kind/scope 变了(应为 list/session)')
+  assert(rightSlot.kind === 'list' && rightSlot.scope === 'session',
+    `conversation.input.right 的 kind/scope 变了(现在是 ${rightSlot.kind}/${rightSlot.scope},应为 list/session)`)
   const convClient = readFrameworkFile('dsh-client-ui-conversation/lib/client.js')
-  assert(convClient.includes('renderSlot("conversation.input.right"'), 'dsh-client-ui-conversation 不再渲染 conversation.input.right')
+  assert(/renderSlot\(\s*["'`]conversation\.input\.right["'`]/.test(convClient),
+    'dsh-client-ui-conversation 不再渲染 conversation.input.right')
 
   // 槽位 settings.section:声明(kind=list/scope=root)+ 实际渲染
-  const sectionSlot = findKeyBlock(clientManifest, 'settings.section', '"')
+  const sectionSlot = manifest.slotApi.find((entry) => entry.key === 'settings.section') ?? null
   assert(sectionSlot !== null, '槽位 settings.section 不见了(设置栏目无处挂载)')
-  assert(sectionSlot.includes('kind: "list"') && sectionSlot.includes('scope: "root"'),
-    'settings.section 的 kind/scope 变了(应为 list/root)')
+  assert(sectionSlot.kind === 'list' && sectionSlot.scope === 'root',
+    `settings.section 的 kind/scope 变了(现在是 ${sectionSlot.kind}/${sectionSlot.scope},应为 list/root)`)
   const settingsGeneral = readFrameworkFile('dsh-client-ui-settings-general/lib/client.js')
-  assert(settingsGeneral.includes('renderSlot("settings.section"'), 'ui-settings-general 不再渲染 settings.section')
+  assert(/renderSlot\(\s*["'`]settings\.section["'`]/.test(settingsGeneral),
+    'ui-settings-general 不再渲染 settings.section')
 
   const settingsClient = readFrameworkFile('dsh-client-ui-settings/lib/client.js')
   // v0.7.2:rc.2 起客户端设置读写入口由 settingsScope 换成 configForms
   // (configForms.get(条目 id) → getSnapshot() / set(field, value) / subscribe())。
-  assert(settingsClient.includes('super(ctx, "configForms")'), 'configForms 服务不见了(设置卡片无法读写)')
+  assert(/super\(ctx,\s*["'`]configForms["'`]\)/.test(settingsClient), 'configForms 服务不见了(设置卡片无法读写)')
   assert(!settingsClient.includes('settingsScope'), 'settingsScope 又出现了 —— 新契约下应改用 configForms')
   return 'slots / conversation.input.right / settings.section / configForms 全部在位(声明:client manifest;渲染:各客户端 bundle)'
 })

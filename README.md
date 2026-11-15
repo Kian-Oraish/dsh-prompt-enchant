@@ -155,6 +155,13 @@ dsh-prompt-enchant/
 | 0.1.2-alpha.x(alpha.5 契约已核对) | ✅ | ⚠️ 降级为单轮(`useSession` 已移除,`useConversation` 不含消息历史) | ⚠️ 输入机改为 Lexical 编辑器,公开 API 无引用重插动词,`setDraft` 会把引用 chip 退化为文本提及(发送时不再注入文件内容)——因此**含 @ 引用的草稿在该版本下按钮禁用**(悬停可见说明),以保护引用完整性;无引用草稿正常增强 | ✅ 「设置」左侧一级栏目「提示词附魔棒」:单选模式、即选即存(当前仅「通用」;垂类模式后续随注册表扩充) |
 | **0.1.6-alpha.2(v0.7.0 实测)** | ✅ | ✅ **宿主侧派生历史**(`sessions.deriveMessages()`),感知 compaction | ✅ 含 @ 引用时**按钮禁用**(fail-closed);见下方「v0.7.0 修复」 | ✅ 同上,并补声明 `dsh-client-ui-settings` |
 | **0.2.1-rc.2(v0.7.5 实测)** | ✅ | ✅ **宿主侧派生历史**(`sessions.deriveMessages()`),感知 compaction | ✅ 含 @ 引用时**按钮禁用**(fail-closed);见下方「v0.7.0 修复」 | ✅ `configForms` + 反应式 volatile Config;插件兼容闸实测放行(`evaluatePluginCompatibility` 返回 `undefined`),见下方「v0.7.5 修复」 |
+| **0.2.2-rc.1(v0.7.5 实测,2026-11-05)** | ✅ | ✅ 同上(`sessions.deriveMessages()`;0.2.2 工具执行管线改为 signal 融合) | ✅ 同上 | ✅ `configForms` + volatile Config 同左;契约哨兵 **8/8**(0.2.2 的 `webServer.register` 签名扩宽、`tools.register` 新增可选第二参、工具执行拆到 `pipeline.js`,均已核对为向后兼容) |
+| **0.2.2-rc.3(v0.7.6 实测,2026-11-16)** | ✅ | ✅ 同上 | ✅ 同上 | ✅ 同上;契约哨兵 **8/8**。0.2.2-rc.2 起客户端 bundle 改压缩产物(反引号 + 去空白),哨兵已改为结构化读取 manifest / 引号无关断言,不再误报漂移(见「v0.7.6 修复」) |
+
+**v0.7.6 修复(针对 0.2.2-rc.3 的契约哨兵假失败)**:
+
+1. **压缩产物让哨兵误报「契约漂移」(P1,测试级,功能无影响)**。0.2.2-rc.2 起框架客户端 bundle 的字符串改用反引号、`return {` 压成 `return{`;旧哨兵把引号/空白写死,第 4/6 条因此变红。实际契约( `SessionSnapshot` 无 `nodes`、`slots` 服务签名、两个槽位 kind/scope、`configForms` )全部未变。改法:客户端 manifest 改为结构化读取(`TYPE_API`/`SERVICE_API`/`CLIENT_SLOT_API` 按括号配对求值),文本断言改为引号无关正则;断言一条未删、未削弱。
+2. **复验范围**:DSH 0.2.2-rc.3(桌面版、Node 24.21)上 `tests/*.test.mjs` 81/81、契约哨兵 8/8;工作区级 `check-plugin-compat.mjs` 对 3 个自研插件 30/30。
 
 **v0.7.5 修复(针对 0.2.1-rc.2 的插件兼容闸)**:
 

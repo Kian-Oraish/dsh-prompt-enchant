@@ -13,12 +13,28 @@
 // ============================================================================
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, realpathSync, readlinkSync } from 'node:fs'
+import { existsSync, realpathSync, readlinkSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 
-const PROFILE_LINK = join(homedir(), '.dsh', 'profiles', 'web', 'node_modules', 'dsh-prompt-enhance')
+// 0.1.7 起桌面版 profile 叫 desktop(旧终端版叫 web);这里不写死 profile 名:
+// 先看 desktop/web,再兜底扫 ~/.dsh/profiles/*,取第一个真实存在的安装链接。
+function resolveProfileLink() {
+  const root = join(homedir(), '.dsh', 'profiles')
+  const names = ['desktop', 'web']
+  try {
+    for (const name of readdirSync(root)) if (!names.includes(name)) names.push(name)
+  } catch { /* 没有 profiles 目录:保持 desktop/web 两个候选 */ }
+  for (const name of names) {
+    const link = join(root, name, 'node_modules', 'dsh-prompt-enhance')
+    if (existsSync(link)) return link
+  }
+  return null
+}
+
+const PROFILE_LINK = resolveProfileLink()
+  ?? join(homedir(), '.dsh', 'profiles', 'desktop', 'node_modules', 'dsh-prompt-enhance')
 const REPO_DIR = realpathSync(join(import.meta.dirname, '..'))
 
 /** 探测安装态;未安装(如在 CI/纯净检出上跑测试)则跳过而非失败。 */
