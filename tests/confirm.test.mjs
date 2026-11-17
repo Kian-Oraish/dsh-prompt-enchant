@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseConfirms, pickAnswerText, applyAnswers, buildQuestions } from '../lib/confirm.js'
+import { parseConfirms, pickAnswerText, applyAnswers, buildQuestions, stripConfirmTags } from '../lib/confirm.js'
 
 test('带要素名与候选:解析出要素与候选列表', () => {
   const items = parseConfirms('风格采用【待确认:色调(冷调/暖调)】,构图【待确认:视角(仰视/平视/俯视)】')
@@ -105,4 +105,16 @@ test('applyAnswers 对变体形态同样按序代入', () => {
   const items = parseConfirms(text)
   const filled = applyAnswers(text, items, [{ id: 'pwe-q-0', selected: ['广角'] }])
   assert.equal(filled, '构图广角。')
+})
+
+test('规范方括号形态容忍候选内嵌套括号', () => {
+  const items = parseConfirms('篇幅要求【待确认:篇幅(简短(300字)/详细(1000字))】')
+  assert.equal(items.length, 1)
+  assert.equal(items[0].element, '篇幅')
+  assert.deepEqual(items[0].candidates, ['简短(300字)', '详细(1000字)'])
+})
+
+test('stripConfirmTags:收口阶段净除残留待确认标记', () => {
+  const cleaned = stripConfirmTags('输出篇幅为【待确认:篇幅(300字/500字)】的周报')
+  assert.equal(cleaned, '输出篇幅为的周报')
 })

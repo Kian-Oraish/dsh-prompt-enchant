@@ -117,7 +117,7 @@ function makeExchange({ method = 'GET', headers = {}, body = '' } = {}) {
  * @param options.sessions 传入 sessions 服务替身(多轮历史派生测试用)
  * @param options.llm 覆盖 llm 服务替身(要真正走到构建 messages 的路径时用)
  */
-async function loadPlugin({ connection, requestRejection, sessions, llm } = {}) {
+async function loadPlugin({ connection, requestRejection, sessions, llm, extraServices = {} } = {}) {
   const mod = await import('../lib/index.js')
   const webServer = makeWebServer()
   const registeredTools = []
@@ -146,6 +146,7 @@ async function loadPlugin({ connection, requestRejection, sessions, llm } = {}) 
 
   const ctx = {
     get(name) {
+      if (name in extraServices) return extraServices[name]
       if (name === 'connection') return connectionService
       if (name === 'settings') return undefined
       if (name === 'agents') return undefined
@@ -794,4 +795,64 @@ test('真机链路:客户端中途断开 → 中止且不写响应(不挂住连�
   })
   // 服务端不应把结果写进一个已断开的连接 —— 且必须已中止(不再继续跑)
   assert.equal(llm.calls.length, 1)
+})
+
+// ---------------------------------------------------------------------------
+// 10. 通用模式功能缺陷回归测试(流程抢占 / 提问闸门 / 双下划线保留 / 工具历史)
+// ---------------------------------------------------------------------------
+test('跨模式建议(suggestedMode !== null)时不抢先触发通用模式确认弹窗', async () => {
+  const llm = makeRecordingLlm('【画面】弹吉他的猫【待确认:画幅(1:1/9:16)】\n[[MODE:design]]')
+  let askCalled = false
+  const agents = { get: () => 'root-agent', roots: () => ['root-agent'] }
+  const userQuestions = { ask: async () => { askCalled = true; return { answers: [{ id: 'pwe-q-0', selected: ['1:1'] }] } } }
+  const { webServer } = await loadPlugin({ llm, extraServices: { agents, userQuestions } })
+  const route = webServer.routes.get(ENHANCE_PATH)
+  const token = await fetchToken(webServer)
+  const { req, res } = makeExchange({
+    method: 'POST',
+    headers: authedHeaders(token, { 'content-type': 'application/json' }),
+    body: JSON.stringify({ text: '帮我画一只弹吉他的猫', sessionId: 's1' }),
+  })
+  await route.handler(req, res)
+  const payload = JSON.parse(res.body)
+  assert.equal(payload.ok, true)
+  assert.equal(payload.suggestedMode, 'design')
+  assert.equal(askCalled, false, '存在跨模式建议时不应在旧模式下抢先弹窗')
+  assert.equal(llm.calls.length, 1, '不应触发旧模式下的二次重跑')
+})
+
+test('含“这么/哪些”的任务构建指令不误触发提问闸门重试,且保留 __init__ 标识符', async () => {
+  const llm = makeRecordingLlm('请在类的 __init__ 方法中利用 __dirname 读取配置文件,并输出校验结果。')
+  const { webServer } = await loadPlugin({ llm })
+  const route = webServer.routes.get(ENHANCE_PATH)
+  const token = await fetchToken(webServer)
+  const { req, res } = makeExchange({
+    method: 'POST',
+    headers: authedHeaders(token, { 'content-type': 'application/json' }),
+    body: JSON.stringify({ text: '帮我写个脚本,看看这么做行不行' }),
+  })
+  await route.handler(req, res)
+  const payload = JSON.parse(res.body)
+  assert.equal(payload.ok, true)
+  assert.equal(llm.calls.length, 1, '不应被误判为提问而触发二次校验重试')
+  assert.ok(payload.enhanced.includes('__init__'), '__init__ 双下划线不应被当成 Markdown 粗体剥离')
+  assert.ok(payload.enhanced.includes('__dirname'), '__dirname 双下划线不应被剥离')
+})
+
+test('历史派生:包含轻量工具调用摘要且超长消息保留首尾两端', async () => {
+  const head = '开头背景说明'.repeat(80)
+  const tail = '末尾核心结论与修复点'.repeat(80)
+  const messages = await messagesForHistory([
+    {
+      role: 'assistant',
+      content: [
+        { type: 'tool-call', name: 'str_replace_editor', input: { path: 'lib/index.js' } },
+        { type: 'text', text: head + '中间铺垫'.repeat(200) + tail },
+      ],
+    },
+  ])
+  const histText = messages[0].content[0].text
+  assert.equal(histText.length, 800, '截断后总长仍严格控制在 800 字')
+  assert.ok(histText.includes('[工具:str_replace_editor:lib/index.js]'), '应包含工具调用摘要')
+  assert.ok(histText.endsWith('末尾核心结论与修复点'), '应保留消息末尾的关键结论')
 })
